@@ -1,0 +1,1876 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<meta name="color-scheme" content="dark light"/>
+<link rel="icon" href="data:,"/>
+<title>محاكي القطار المصري — القاهرة إسكندرية</title>
+<script src="assets/three.min.js"></script>
+<style>
+:root{
+  --amber:#f0a51f; --amber2:#ffbe45; --teal:#2a9d8f; --red:#e63946; --green:#37c978; --yellow:#ffd23f;
+  --ink:#0d1417; --plate:rgba(10,18,22,.82); --plate2:rgba(10,18,22,.68); --line:rgba(255,255,255,.16);
+  --txt:#f4f1e8; --muted:#b9c4c7;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;height:100dvh;overflow:hidden;background:#0b1114;font-family:"Cairo",system-ui,sans-serif;color:var(--txt)}
+html:fullscreen,body:fullscreen{height:100%;background:#000}
+html:fullscreen #scene{inset:0;width:100%;height:100%}
+button{font-family:inherit;min-height:44px;cursor:pointer;user-select:none;touch-action:manipulation}
+#scene{position:fixed;inset:0;touch-action:none}
+#scene canvas{display:block;width:100%;height:100%;touch-action:none}
+html.fakefs,html.fakefs body{height:100%;height:100dvh}
+html.fakefs #scene{inset:0}
+.hud{position:fixed;z-index:5;pointer-events:none}
+.plate{background:var(--plate);border:1px solid var(--line);border-radius:10px;backdrop-filter:blur(6px)}
+/* top route bar */
+#topbar{top:8px;left:8px;right:8px;display:flex;gap:8px;align-items:stretch}
+#routeBox{flex:1;padding:8px 12px 20px}
+#routeTitle{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+#routeTitle b{font-size:15px}
+#routeTitle span{font-size:12px;color:var(--muted)}
+#clock{font-family:"Changa",monospace;font-size:15px;color:var(--amber2)}
+#trackLine{position:relative;height:26px;margin-top:6px}
+#trackLine:before{content:"";position:absolute;top:12px;left:6px;right:6px;height:4px;background:#3c4a50;border-radius:2px}
+#trackFill{position:absolute;top:12px;right:6px;height:4px;background:var(--amber);border-radius:2px;width:0%}
+.stDot{position:absolute;top:5px;width:18px;height:18px;margin-right:-9px;border-radius:50%;background:#223036;border:2px solid #7d8b90;display:flex;align-items:center;justify-content:center;font-size:9px}
+.stDot.done{background:var(--green);border-color:var(--green);color:#06280f}
+.stDot.next{border-color:var(--amber);box-shadow:0 0 0 3px rgba(240,165,31,.25)}
+.stName{position:absolute;top:22px;transform:translateX(50%);font-size:10px;color:var(--muted);white-space:nowrap}
+#trainMark{position:absolute;top:1px;width:26px;height:26px;margin-right:-13px;font-size:17px;transition:none;filter:drop-shadow(0 2px 3px rgba(0,0,0,.6))}
+#scoreBox{padding:8px 14px;text-align:center;min-width:104px}
+#scoreBox .lbl{font-size:11px;color:var(--muted)}
+#scoreVal{font-family:"Changa";font-size:24px;line-height:1;color:var(--amber2)}
+#scoreBox .sub{font-size:11px;color:var(--muted)}
+/* left info (RTL: appears on visual left via left) */
+#infoBox{top:96px;left:8px;padding:10px 12px;width:196px}
+#infoBox .row{display:flex;justify-content:space-between;align-items:baseline;margin:2px 0}
+#infoBox .k{font-size:12px;color:var(--muted)}
+#infoBox .v{font-family:"Changa";font-size:17px}
+#nextStName{font-size:17px;font-weight:800;color:#fff}
+#distBig{font-family:"Changa";font-size:30px;color:var(--amber2);line-height:1.05}
+#signalBox{display:flex;align-items:center;gap:9px;margin-top:7px;padding-top:8px;border-top:1px solid var(--line)}
+#signalLight{width:20px;height:20px;border-radius:50%;background:var(--green);border:2px solid rgba(255,255,255,.35);flex:none}
+#signalTxt{font-size:13px;font-weight:700}
+#limitWarn{color:var(--red);font-weight:800;font-size:12px;min-height:16px}
+/* stop meter */
+#stopMeter{top:96px;right:8px;width:196px;padding:10px 12px;display:none}
+#stopMeter h4{margin:0 0 4px;font-size:13px}
+#meterTrack{position:relative;height:20px;background:#223036;border-radius:5px;overflow:hidden;margin-top:6px}
+#meterZone{position:absolute;top:0;bottom:0;background:rgba(55,201,120,.55)}
+#meterPerfect{position:absolute;top:0;bottom:0;background:rgba(255,210,63,.9)}
+#meterNeedle{position:absolute;top:0;bottom:0;width:3px;background:#fff;box-shadow:0 0 6px #fff}
+#stopHint{font-size:12px;color:var(--muted);margin-top:5px;text-align:center}
+/* center message */
+#msg{top:34%;left:50%;transform:translate(-50%,-50%);text-align:center;padding:12px 26px;font-size:clamp(18px,3.4vw,30px);font-weight:900;display:none;text-shadow:0 2px 8px #000}
+#submsg{top:calc(34% + 74px);left:50%;transform:translateX(-50%);font-size:14px;color:#ffe9b8;display:none;text-shadow:0 1px 6px #000;font-weight:700}
+/* bottom dash */
+#dash{bottom:0;left:0;right:0;display:flex;justify-content:center;align-items:flex-end;gap:10px;padding:8px 10px calc(8px + env(safe-area-inset-bottom));background:linear-gradient(to top, rgba(5,9,11,.88), rgba(5,9,11,.45) 70%, transparent);pointer-events:none}
+.ctlGroup{pointer-events:auto;display:flex;flex-direction:column;align-items:center;gap:5px}
+.ctlGroup .glabel{font-size:11px;color:var(--muted);font-weight:700}
+.leverBtns{display:flex;gap:6px}
+.bigBtn{width:58px;height:58px;border-radius:12px;border:1px solid var(--line);background:var(--plate);color:#fff;font-size:24px;font-weight:900;display:flex;align-items:center;justify-content:center}
+.bigBtn:active{transform:scale(.95)}
+.bigBtn.thr{border-color:rgba(240,165,31,.55)}
+.bigBtn.brk{border-color:rgba(230,57,70,.55)}
+.notches{display:flex;gap:3px;direction:ltr}
+.notch{width:13px;height:20px;border-radius:3px;background:#2b3a40;border:1px solid rgba(255,255,255,.12)}
+.notch.onT{background:var(--amber)}
+.notch.onB{background:var(--red)}
+#speedo{pointer-events:auto;text-align:center;padding:8px 18px 6px;min-width:158px}
+#speedVal{font-family:"Changa";font-size:52px;line-height:.95;color:#fff}
+#speedVal.over{color:var(--red)}
+#speedo .unit{font-size:12px;color:var(--muted)}
+#gearRow{display:flex;justify-content:center;gap:12px;font-size:12px;color:var(--muted);margin-top:2px}
+#gearRow b{color:var(--amber2);font-family:"Changa";font-size:14px}
+.midBtns{pointer-events:auto;display:flex;flex-direction:column;gap:6px}
+.pillBtn{border-radius:10px;border:1px solid var(--line);background:var(--plate);color:#fff;padding:8px 14px;font-size:14px;font-weight:800;min-width:86px}
+.pillBtn:disabled{opacity:.38}
+.pillBtn.horn{border-color:rgba(255,210,63,.6)}
+.pillBtn.emg{background:#7d1420;border-color:#ff5b6a;color:#fff}
+.pillBtn.doorsOpen{border-color:var(--green);color:#aef0c8}
+.pillBtn.camOn{border-color:var(--amber);color:var(--amber2);background:rgba(240,165,31,.18)}
+/* real drag levers for phone */
+.vLever{pointer-events:auto;position:relative;width:64px;height:138px;background:linear-gradient(180deg,#1a262c,#0e161a);border:1px solid var(--line);border-radius:14px;touch-action:none;user-select:none;box-shadow:inset 0 2px 10px rgba(0,0,0,.7)}
+.vLever .vTrack{position:absolute;left:50%;top:14px;bottom:14px;width:10px;transform:translateX(-50%);background:#05090b;border-radius:6px;box-shadow:inset 0 0 6px #000}
+.vLever .vTicks{position:absolute;inset:14px 6px;display:flex;flex-direction:column;justify-content:space-between;pointer-events:none}
+.vLever .vTicks i{display:block;height:2px;background:rgba(255,255,255,.22);border-radius:2px}
+.vLever .vHandle{position:absolute;left:50%;width:56px;height:34px;transform:translate(-50%,50%);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:19px;box-shadow:0 4px 10px rgba(0,0,0,.65),inset 0 1px 0 rgba(255,255,255,.35);cursor:grab;touch-action:none;border:2px solid rgba(0,0,0,.45)}
+.vLever .vHandle:active{cursor:grabbing;filter:brightness(1.15)}
+.vLever.thrL .vHandle{background:linear-gradient(180deg,#ffc95e,#e89b0c);color:#241a00}
+.vLever.brkL .vHandle{background:linear-gradient(180deg,#ff6b76,#c81e2e);color:#fff}
+.vLever .vVal{position:absolute;top:-22px;left:50%;transform:translateX(-50%);font-family:"Changa";font-size:15px;color:var(--amber2);white-space:nowrap}
+.vLever.brkL .vVal{color:#ff8a94}
+.miniBtns{display:flex;gap:6px}
+.miniBtn{width:30px;height:30px;min-height:30px;border-radius:8px;border:1px solid var(--line);background:var(--plate);color:#fff;font-size:17px;font-weight:900;line-height:1;padding:0}
+@media (max-width:760px){.vLever{width:58px;height:118px}.vLever .vHandle{width:50px;height:30px}}
+/* overlays */
+.overlay{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;background:rgba(4,8,10,.55);padding:14px}
+.card{background:#101a1f;border:1px solid var(--line);border-radius:16px;max-width:520px;width:100%;padding:22px 22px 18px;box-shadow:0 18px 50px rgba(0,0,0,.5);max-height:92vh;overflow:auto}
+.card h1{margin:0 0 2px;font-size:26px;font-weight:900}
+.card h1 .accent{color:var(--amber)}
+.card p{color:var(--muted);font-size:14px;line-height:1.7;margin:8px 0}
+.routeChips{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin:12px 0;direction:rtl}
+.chip{background:#1c2a31;border:1px solid var(--line);padding:5px 11px;border-radius:999px;font-size:13px;font-weight:700}
+.arrow{color:var(--amber);font-weight:900}
+.howto{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:12px 0}
+.howto div{background:#16232a;border-radius:9px;padding:8px 10px;font-size:12.5px;line-height:1.6}
+.howto b{color:var(--amber2)}
+.startBtn{width:100%;background:var(--amber);color:#201500;border:none;border-radius:12px;font-size:19px;font-weight:900;padding:13px;margin-top:8px}
+.startBtn:active{transform:scale(.98)}
+#endCard{display:none}
+#endStats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+#endStats div{background:#16232a;border-radius:9px;padding:10px}
+#endStats .n{font-family:"Changa";font-size:22px;color:var(--amber2)}
+#endStats .t{font-size:12px;color:var(--muted)}
+#grade{font-size:44px;text-align:center;font-family:"Changa";color:var(--amber2)}
+#errBox{position:fixed;z-index:50;left:8px;bottom:8px;max-width:90vw;background:#7d1420;color:#fff;padding:10px 14px;border-radius:8px;font-size:13px;display:none;white-space:pre-wrap}
+#dwellBox{top:150px;left:50%;transform:translateX(-50%);padding:8px 18px;text-align:center;display:none}
+#dwellBox .t{font-size:13px}
+#dwellBarWrap{height:8px;background:#223036;border-radius:4px;margin-top:5px;overflow:hidden;width:210px}
+#dwellBar{height:100%;background:var(--green);width:0%}
+@media (max-width:760px){
+  #infoBox{width:158px;top:104px;padding:8px 10px}
+  #distBig{font-size:24px}
+  #stopMeter{width:158px;top:104px;padding:8px 10px}
+  #stopMeter h4{font-size:11.5px}
+  #scoreBox{min-width:84px;padding:6px 8px}
+  #dash{gap:5px;padding:6px 6px calc(6px + env(safe-area-inset-bottom))}
+  #speedo{min-width:94px;padding:5px 6px 3px}
+  #speedVal{font-size:32px}
+  #gearRow{gap:6px;font-size:10.5px}
+  .bigBtn{width:46px;height:46px;font-size:20px}
+  .pillBtn{min-width:56px;font-size:11.5px;padding:6px 5px}
+  .notch{width:10px;height:16px}
+  .ctlGroup .glabel{font-size:9.5px}
+  .howto{grid-template-columns:1fr}
+  #routeTitle b{font-size:13px}
+  .stName{display:none}
+}
+</style>
+</head>
+<body>
+<div id="scene"></div>
+
+<!-- HUD -->
+<div class="hud" id="topbar">
+  <div class="plate" id="routeBox">
+    <div id="routeTitle"><b>🚂 القاهرة ← الإسكندرية</b><span>قطار إكسبريس · خط بحري</span><span id="clock">09:00</span></div>
+    <div id="trackLine"><div id="trackFill"></div><div id="trainMark">🚂</div></div>
+  </div>
+  <div class="plate" id="scoreBox"><div class="lbl">النقاط</div><div id="scoreVal">0</div><div class="sub" id="violTxt">بدون مخالفات</div></div>
+</div>
+
+<div class="hud plate" id="infoBox">
+  <div class="row"><span class="k">المحطة الجاية</span></div>
+  <div id="nextStName">طنطا</div>
+  <div id="distBig">0 م</div>
+  <div class="row"><span class="k">حد السرعة</span><span class="v" id="limitVal">120</span></div>
+  <div class="row"><span class="k">الوصول المجدول</span><span class="v" id="schedVal">—</span></div>
+  <div id="signalBox"><div id="signalLight"></div><div><div id="signalTxt">الإشارة خضراء</div><div style="font-size:11px;color:var(--muted)" id="signalDist"></div></div></div>
+  <div id="limitWarn"></div>
+</div>
+
+<div class="hud plate" id="stopMeter">
+  <h4>🎯 عدّاد الوقوف في المحطة</h4>
+  <div id="meterTrack"><div id="meterZone"></div><div id="meterPerfect"></div><div id="meterNeedle"></div></div>
+  <div id="stopHint">المنطقة الخضراء = الرصيف · الصفراء = وقوف مثالي</div>
+</div>
+
+<div class="hud plate" id="dwellBox"><div class="t" id="dwellTxt">الركاب بيطلعوا وينزلوا…</div><div id="dwellBarWrap"><div id="dwellBar"></div></div></div>
+<div class="hud" id="msg"></div>
+<div class="hud" id="submsg"></div>
+
+<!-- Bottom dashboard controls -->
+<div class="hud" id="dash">
+  <div class="ctlGroup">
+    <div class="vLever brkL" id="brakeLever" aria-label="دراع الفرامل — اسحب لفوق وتحت">
+      <div class="vVal" id="brakeLeverVal">فرامل 0</div>
+      <div class="vTrack"></div>
+      <div class="vTicks"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="vHandle" id="brakeHandle">🛑</div>
+    </div>
+    <div class="miniBtns">
+      <button class="miniBtn" id="btnBrakePlus" aria-label="زود الفرامل">＋</button>
+      <button class="miniBtn" id="btnBrakeMinus" aria-label="قلل الفرامل">－</button>
+    </div>
+    <div class="notches" id="brakeNotches"></div>
+    <div class="glabel">🛑 دراع الفرامل — اسحبه</div>
+  </div>
+
+  <div class="midBtns">
+    <button class="pillBtn" id="btnCamera">📷 كاميرا بره القطر</button>
+    <button class="pillBtn" id="btnFullscreen">⛶ ملء الشاشة</button>
+    <button class="pillBtn horn" id="btnHorn">📯 كلاكس</button>
+    <button class="pillBtn" id="btnDoors" disabled>🚪 الأبواب</button>
+    <button class="pillBtn emg" id="btnEmergency">فرامل طوارئ</button>
+  </div>
+
+  <div class="plate" id="speedo">
+    <div id="speedVal">0</div>
+    <div class="unit">كم / ساعة</div>
+    <div id="gearRow"><span>الخانق <b id="thrVal">0</b></span><span>الفرامل <b id="brkVal">0</b></span></div>
+  </div>
+
+  <div class="ctlGroup">
+    <div class="vLever thrL" id="thrLever" aria-label="دراع السرعة — اسحب لفوق وتحت">
+      <div class="vVal" id="thrLeverVal">خانق 0</div>
+      <div class="vTrack"></div>
+      <div class="vTicks"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="vHandle" id="thrHandle">⚡</div>
+    </div>
+    <div class="miniBtns">
+      <button class="miniBtn" id="btnThrPlus" aria-label="زود السرعة">＋</button>
+      <button class="miniBtn" id="btnThrMinus" aria-label="قلل الخانق">－</button>
+    </div>
+    <div class="notches" id="thrNotches"></div>
+    <div class="glabel">⚡ دراع السرعة — اسحبه</div>
+  </div>
+</div>
+
+<!-- Start overlay -->
+<div class="overlay" id="startOverlay">
+  <div class="card">
+    <h1>محاكي القطار <span class="accent">المصري</span> 🚂</h1>
+    <p>انت السواق. هتسوق قطار الإكسبريس من كابينة القيادة 3D من <b style="color:#fff">القاهرة للإسكندرية</b>، وتوقف في كل محطة في مكانها بالظبط، وتحترم الإشارات وحدود السرعة.</p>
+    <div class="routeChips"><span class="chip">القاهرة</span><span class="arrow">←</span><span class="chip">بنها</span><span class="arrow">←</span><span class="chip">طنطا</span><span class="arrow">←</span><span class="chip">دمنهور</span><span class="arrow">←</span><span class="chip">الإسكندرية</span></div>
+    <div class="howto">
+      <div><b>⚡ دراع السرعة:</b> اسحب الدراع الأصفر لفوق ولتحت بإيدك على التليفون، أو ＋ و W / S. 8 درجات.</div>
+      <div><b>🛑 دراع الفرامل:</b> اسحب الدراع الأحمر بإيدك، أو A / D. فرّمل بدري قبل المحطة!</div>
+      <div><b>📷 الكاميرا وملء الشاشة:</b> زرار الكاميرا بيطلعك بره الكابينة تشوف قطار مصر الحقيقي بالتفصيل — جرار ديزل أزرق ENR بعجل وبوجيات وسلالم، وعربيات تانية مكيفة بشبابيك إزاز، والركاب المصريين على الرصيف بجلاليب وطاقيات وحجاب وعبايات — واسحب بإيدك يمين وشمال عشان تلف الكاميرا حوالين القطر، وقرّب صباعين لبعض أو ابعدهم للزوم. وزرار ⛶ بيملأ شاشة التليفون.</div>
+      <div><b>🕹️ الكابينة الحقيقية:</b> طبلون جرار ديزل ENR كامل قدامك — عدّاد سرعة كبير بإبرة، وعدّادات ضغط فرامل وخزان رئيسي ولفات موتور، ولمبات إشارات وأبواب بتنوّر مع الإشارة اللي جاية، ودراع خانق ودراع فرامل ومفتاح اتجاه في أماكنهم الحقيقية وبيتحركوا مع تحكمك، وكرسي سواق، ومسّاحتين على الإزاز الأمامي، ومروحة سقف، وطفاية حريق. دوس على زرار الكلاكس الأصفر أو زرار النور أو الأبواب اللي على الطبلون نفسه وهما شغالين. واسحب الشاشة عشان تلف بصّك في الكابينة كلها — البصّة بتثبت مكان ما تسيبها ومش بترجع لوحدها، ودوس مرتين بسرعة عشان ترجع تبص لقدام. ومن الإزاز العريض هتشوف مقدمة الجرار القصيرة العريضة زي القطر الحقيقي بالظبط، من غير خط في النص.</div>
+      <div><b>🔊 الصوت:</b> صوت الموتور والعجل على السكة بيعلى مع السرعة — شغّل صوت التليفون.</div>
+      <div><b>🎯 الوقوف:</b> وقّف مقدمة القطر جوه المنطقة الصفراء في عدّاد الوقوف.</div>
+      <div><b>🚦 الإشارات:</b> أصفر = هدّي لـ 60 · أحمر = لازم تقف، تعدّيه مخالفة.</div>
+      <div><b>🚪 الأبواب:</b> بعد الوقوف في المحطة افتح الأبواب، استنى الركاب، واقفلها واطلع.</div>
+      <div><b>📯 الكلاكس:</b> زرار الكلاكس أو H — خبطتين قبل ما تتحرك.</div>
+    </div>
+    <p style="font-size:12.5px">💡 سرعة الخط 120 كم/س، وقبل أي محطة بـ 600 متر الحد بيبقى 60، وبـ 250 متر بيبقى 40. الوقوف المظبوط والوصول في المعاد = نقاط أعلى.</p>
+    <button class="startBtn" id="btnStart">ابدأ الرحلة من محطة مصر — القاهرة ▶</button>
+  </div>
+</div>
+
+<!-- End overlay -->
+<div class="overlay" id="endOverlay" style="display:none">
+  <div class="card" id="endCard" style="display:block">
+    <h1 id="endTitle">وصلت الإسكندرية! 🎉</h1>
+    <div id="grade">A</div>
+    <div id="endStats">
+      <div><div class="n" id="endScore">0</div><div class="t">النقاط النهائية</div></div>
+      <div><div class="n" id="endTime">0:00</div><div class="t">زمن الرحلة</div></div>
+      <div><div class="n" id="endStops">0/4</div><div class="t">محطات اتوقفت صح</div></div>
+      <div><div class="n" id="endViol">0</div><div class="t">مخالفات</div></div>
+    </div>
+    <p id="endMsg"></p>
+    <button class="startBtn" id="btnAgain">العب تاني 🔁</button>
+  </div>
+</div>
+
+<div id="errBox"></div>
+
+<script>
+window.onerror=function(m,s,l){var e=document.getElementById('errBox');e.style.display='block';e.textContent='⚠ خطأ: '+m;};
+</script>
+<script>
+(function(){
+"use strict";
+var ROUTE=12500;
+var STATIONS=[
+ {name:"القاهرة", sub:"محطة مصر", z:0, sched:0},
+ {name:"بنها", sub:"القليوبية", z:2400, sched:105},
+ {name:"طنطا", sub:"الغربية", z:5200, sched:215},
+ {name:"دمنهور", sub:"البحيرة", z:8600, sched:325},
+ {name:"الإسكندرية", sub:"محطة مصر — إسكندرية", z:12500, sched:445}
+];
+// ---------- state ----------
+var S={
+ started:false, over:false, pos:0, speed:0, throttle:0, brake:0, camMode:'cab',
+ score:0, violations:0, violMsg:"", nextIdx:1, stopsDone:0,
+ doorsOpen:false, dwell:0, dwellDone:false, stoppedStation:-1,
+ elapsed:0, overT:0, overCool:0, emgCool:0, hardCool:0,
+ msgT:0, distBonusKm:0, finalServed:false, passedFinal:false
+};
+// ---------- three setup ----------
+var container=document.getElementById('scene');
+var scene=new THREE.Scene();
+scene.background=new THREE.Color(0x9fc8e8);
+scene.fog=new THREE.Fog(0xa8c8e0, 220, 1500);
+var camera=new THREE.PerspectiveCamera(68, innerWidth/innerHeight, 0.1, 4000);
+var renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth,innerHeight);
+renderer.outputEncoding=THREE.sRGBEncoding;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.05;
+container.appendChild(renderer.domElement);
+
+var hemi=new THREE.HemisphereLight(0xcfe8ff,0x8a7a56,1.18); scene.add(hemi);
+var sun=new THREE.DirectionalLight(0xfff1d6,1.5); sun.position.set(-60,110,40); scene.add(sun);
+var fill=new THREE.DirectionalLight(0xbcd7ff,0.35); fill.position.set(50,40,-80); scene.add(fill);
+
+// environment for metals (skipped: hemisphere+sun rig carries the look and keeps startup fast)
+
+// ---------- helpers ----------
+function seededRand(seed){var x=seed*9301+49297;return function(){x=(x*9301+49297)%233280;return x/233280;};}
+function mat(color,rough,metal){return new THREE.MeshStandardMaterial({color:color,roughness:rough==null?0.85:rough,metalness:metal||0});}
+function box(w,h,d,material,x,y,z,parent){
+  var m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),material);
+  m.position.set(x||0,y||0,z||0); (parent||scene).add(m); return m;
+}
+function cyl(rt,rb,h,material,x,y,z,parent,seg){
+  var m=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,seg||10),material);
+  m.position.set(x||0,y||0,z||0); (parent||scene).add(m); return m;
+}
+var MAT={
+ ballast:mat(0x6b6259,1), rail:mat(0xc3ccd1,0.32,0.55), sleeper:mat(0x3d2c1e,1),
+ ground:mat(0x9c8a5f,1), field:mat(0x5d8f3e,1), field2:mat(0x74a84c,1),
+ sand:mat(0xd6bd8a,1), trunk:mat(0x6e5136,1), palm:mat(0x3e7d32,0.9),
+ house1:mat(0xd9c9a8,0.95), house2:mat(0xb08968,0.95), house3:mat(0xc4d2d8,0.95),
+ roof:mat(0x8a4b2d,0.95), pole:mat(0x4a4238,0.9), water:mat(0x2e7fb8,0.35,0.1),
+ white:mat(0xf2f2ee,0.7), dark:mat(0x232b2f,0.8,0.2)
+};
+// big following ground
+var groundPlane=new THREE.Mesh(new THREE.PlaneGeometry(900,900),mat(0x8f9a58,1));
+groundPlane.rotation.x=-Math.PI/2; groundPlane.position.y=-0.62; scene.add(groundPlane);
+// sea near Alexandria (west side)
+var sea=new THREE.Mesh(new THREE.PlaneGeometry(500,2600),MAT.water);
+sea.rotation.x=-Math.PI/2; sea.position.set(-190,-0.4,11800); scene.add(sea);
+
+// ---------- track chunks ----------
+var CHUNK=200, NCHUNK=10, chunks=[];
+var sleeperGeo=new THREE.BoxGeometry(2.4,0.14,0.55);
+function makePalm(rng){
+  var g=new THREE.Group();
+  var h=5+rng()*3;
+  cyl(0.14,0.22,h,MAT.trunk,0,h/2,0,g,7);
+  for(var i=0;i<7;i++){
+    var f=new THREE.Mesh(new THREE.ConeGeometry(0.28,3.4,4),MAT.palm);
+    var a=i/7*Math.PI*2;
+    f.position.set(Math.cos(a)*1.3,h+0.5,Math.sin(a)*1.3);
+    f.rotation.z=Math.cos(a)*1.15; f.rotation.x=-Math.sin(a)*1.15;
+    g.add(f);
+  }
+  return g;
+}
+function makeHouse(rng){
+  var g=new THREE.Group();
+  var mats=[MAT.house1,MAT.house2,MAT.house3];
+  var w=6+rng()*5,d=6+rng()*4,h=4+rng()*5;
+  box(w,h,d,mats[Math.floor(rng()*3)],0,h/2,0,g);
+  box(w+0.7,0.5,d+0.7,MAT.roof,0,h+0.25,0,g);
+  var winMat=mat(0x2c3e46,0.4,0.3);
+  for(var i=0;i<4;i++){ box(0.9,1.1,0.1,winMat,(rng()-0.5)*(w-2),1.6+rng()*(h-2.4),d/2+0.06,g); }
+  if(rng()>0.55){ box(w*0.6,2.6,d*0.7,mats[Math.floor(rng()*3)],0,h+1.5,0,g); }
+  return g;
+}
+function makeChunk(idx){
+  var g=new THREE.Group(); var rng=seededRand(idx*77+13);
+  // ballast for two tracks
+  box(17,0.5,CHUNK,MAT.ballast,0,-0.28,0,g);
+  // side ground strips
+  var sideL=box(90,0.3,CHUNK,MAT.field,-54,-0.5,0,g);
+  var sideR=box(90,0.3,CHUNK,MAT.field2,54,-0.5,0,g);
+  // rails: main track x=0, second track x=-6
+  [0,-6].forEach(function(tx){
+    [-0.75,0.75].forEach(function(off){
+      var r=box(0.15,0.2,CHUNK,MAT.rail,tx+off,0.12,0,g); r.material=MAT.rail;
+    });
+  });
+  // sleepers instanced
+  var count=62;
+  var inst=new THREE.InstancedMesh(sleeperGeo,MAT.sleeper,count*2);
+  var mtx=new THREE.Matrix4(); var k=0;
+  for(var i=0;i<count;i++){
+    var zz=-CHUNK/2+2+i*(CHUNK-4)/count;
+    mtx.setPosition(0,0.0,zz); inst.setMatrixAt(k++,mtx);
+    mtx.setPosition(-6,0.0,zz); inst.setMatrixAt(k++,mtx);
+  }
+  g.add(inst);
+  // telegraph poles right side
+  var poles=new THREE.Group();
+  for(var p=0;p<4;p++){
+    var pg=new THREE.Group();
+    cyl(0.09,0.12,7.5,MAT.pole,0,3.75,0,pg,6);
+    box(2.2,0.14,0.14,MAT.pole,0,6.9,0,pg);
+    box(1.6,0.14,0.14,MAT.pole,0,6.3,0,pg);
+    pg.position.set(7.5,0,-CHUNK/2+25+p*50); poles.add(pg);
+  }
+  g.add(poles);
+  // props pool
+  var props=new THREE.Group(); g.add(props);
+  var palms=[],houses=[],bushes=[];
+  for(var a=0;a<6;a++){var pm=makePalm(rng);props.add(pm);palms.push(pm);}
+  for(var b=0;b<3;b++){var hs=makeHouse(rng);props.add(hs);houses.push(hs);}
+  var bushMat=mat(0x4c7a35,1);
+  for(var c=0;c<8;c++){var bs=new THREE.Mesh(new THREE.SphereGeometry(0.8+rng()*0.9,7,6),bushMat);props.add(bs);bushes.push(bs);}
+  // canal strip occasionally on left
+  var canal=new THREE.Mesh(new THREE.BoxGeometry(7,0.25,CHUNK*0.9),MAT.water);
+  canal.position.set(-26,-0.42,0); props.add(canal);
+  g.userData={palms:palms,houses:houses,bushes:bushes,sideL:sideL,sideR:sideR,canal:canal,idx:idx};
+  scene.add(g); chunks.push(g); return g;
+}
+function layoutChunk(g,idx){
+  var rng=seededRand(idx*131+7);
+  var zBase=idx*CHUNK;
+  g.position.z=zBase;
+  var u=g.userData;
+  // region coloring: 0-1600 city/sand, 1600-9200 green delta, 9200-11200 mixed, >11200 coastal sand
+  var mid=zBase+CHUNK/2;
+  var lm,rm;
+  if(mid<1600){lm=MAT.sand;rm=MAT.house1;}
+  else if(mid<9200){lm=MAT.field;rm=MAT.field2;}
+  else if(mid<11200){lm=MAT.field2;rm=MAT.sand;}
+  else {lm=MAT.sand;rm=MAT.field;}
+  u.sideL.material=lm; u.sideR.material=rm;
+  u.canal.visible=(mid>1700&&mid<9200&&idx%2===0);
+  u.palms.forEach(function(p){
+    var side=rng()>0.5?1:-1;
+    p.position.set(side*(13+rng()*38),-0.35,-CHUNK/2+rng()*CHUNK);
+    p.visible=rng()>0.18; var s=0.8+rng()*0.6; p.scale.set(s,s,s);
+  });
+  u.houses.forEach(function(h){
+    var side=rng()>0.45?1:-1;
+    h.position.set(side*(20+rng()*30),-0.35,-CHUNK/2+rng()*CHUNK);
+    h.rotation.y=rng()*0.6-0.3;
+    h.visible=(mid<1700||mid>10800)?rng()>0.25:rng()>0.62;
+  });
+  u.bushes.forEach(function(b){
+    var side=rng()>0.5?1:-1;
+    b.position.set(side*(10+rng()*45),0.1,-CHUNK/2+rng()*CHUNK);
+  });
+}
+for(var ci=0;ci<NCHUNK;ci++){var cg=makeChunk(ci);layoutChunk(cg,ci-1);}
+var chunkStart=-1; // chunk indices from -1
+// pyramids near start (Giza side, west)
+(function(){
+  var pyrMat=mat(0xc9a86a,1);
+  [[-120,500,42],[-165,610,30],[-95,690,20]].forEach(function(p){
+    var pyr=new THREE.Mesh(new THREE.ConeGeometry(p[2]*1.4,p[2],4),pyrMat);
+    pyr.position.set(p[0],p[2]/2-0.5,p[1]); pyr.rotation.y=Math.PI/4; scene.add(pyr);
+  });
+})();
+// ---------- stations ----------
+function signTexture(text,sub){
+  var cv=document.createElement('canvas'); cv.width=1024; cv.height=256;
+  var c=cv.getContext('2d');
+  c.fillStyle='#0e4d3a'; c.fillRect(0,0,1024,256);
+  c.strokeStyle='#f0a51f'; c.lineWidth=10; c.strokeRect(14,14,996,228);
+  c.fillStyle='#ffffff'; c.textAlign='center';
+  c.font='900 104px Cairo, Arial'; c.fillText(text,512,128);
+  c.font='700 52px Cairo, Arial'; c.fillStyle='#ffcf6e'; c.fillText(sub,512,205);
+  var t=new THREE.CanvasTexture(cv); t.encoding=THREE.sRGBEncoding; return t;
+}
+
+// ---------- detailed Egyptian people ----------
+// Built from articulated parts: head with eyes/nose, hair or taqiyah or
+// turban or hijab with drape, torso/dress, swinging arms and legs.
+// Clothing is Egyptian: galabeya + taqiyah/emma for men, hijab + long
+// dress or black abaya for women, shirts/trousers, kids, and a station
+// worker in ENR blue uniform with a green dispatch flag.
+var SKIN_TONES=[0xe0ac82,0xc68863,0x8d5a3b,0x6f4423];
+var personMatCache={};
+function pMat(c){ if(!personMatCache[c]) personMatCache[c]=mat(c,0.92,0); return personMatCache[c]; }
+function pLimb(parent,x,y,z,len,r,m){
+  var grp=new THREE.Group(); grp.position.set(x,y,z); parent.add(grp);
+  cyl(r,r*0.8,len,m,0,-len/2,0,grp,7);
+  var hand=new THREE.Mesh(new THREE.SphereGeometry(r*0.95,7,7),pMat(0xc68863));
+  hand.position.y=-len; grp.add(hand);
+  return grp;
+}
+function pHead(g,y,style,color,skin,beard){
+  var hg=new THREE.Group(); hg.position.y=y; g.add(hg);
+  if(style==='hijab'){
+    var hj=new THREE.Mesh(new THREE.SphereGeometry(0.19,10,10),pMat(color));
+    hj.scale.set(1,1.14,1); hj.position.set(0,0.02,-0.035); hg.add(hj);
+    cyl(0.155,0.31,0.46,pMat(color),0,-0.3,-0.02,hg,10);
+  }
+  var head=new THREE.Mesh(new THREE.SphereGeometry(0.15,10,10),pMat(skin));
+  head.scale.y=1.18; if(style==='hijab'){ head.scale.set(0.88,1.05,0.9); head.position.z=0.045; }
+  hg.add(head);
+  box(0.045,0.07,0.05,pMat(skin),0,-0.02,0.145,hg);
+  [-0.055,0.055].forEach(function(ex){
+    var eye=new THREE.Mesh(new THREE.SphereGeometry(0.017,6,6),pMat(0x1a1210));
+    eye.position.set(ex,0.035,style==='hijab'?0.135:0.14); hg.add(eye);
+  });
+  if(beard){ box(0.15,0.13,0.06,pMat(0x2a2019),0,-0.14,0.1,hg); }
+  if(style==='hair'){
+    var hair=new THREE.Mesh(new THREE.SphereGeometry(0.158,10,8),pMat(0x201812));
+    hair.scale.set(1,0.8,1); hair.position.set(0,0.06,-0.02); hg.add(hair);
+  } else if(style==='taqiyah'){
+    cyl(0.115,0.12,0.1,pMat(0xf5f2e8),0,0.155,0,hg,10);
+  } else if(style==='turban'){
+    var tb=new THREE.Mesh(new THREE.TorusGeometry(0.125,0.06,8,14),pMat(0xf5f0e0));
+    tb.rotation.x=Math.PI/2; tb.position.y=0.115; hg.add(tb);
+    var tp=new THREE.Mesh(new THREE.SphereGeometry(0.105,8,8),pMat(0xf5f0e0));
+    tp.position.y=0.17; hg.add(tp);
+  } else if(style==='cap'){
+    cyl(0.125,0.135,0.085,pMat(color),0,0.15,0,hg,10);
+    box(0.23,0.03,0.15,pMat(color),0,0.115,0.17,hg);
+  }
+  return hg;
+}
+function makePerson(rng,forceType){
+  var skin=SKIN_TONES[Math.floor(rng()*SKIN_TONES.length)];
+  var types=['galabeya','galabeya','shirt','shirt','woman','woman','abaya','child','elder'];
+  var type=forceType||types[Math.floor(rng()*types.length)];
+  var g=new THREE.Group();
+  var arms=[],legs=[],flag=null;
+  var galColors=[0xf0ead8,0xe3d7bd,0xcfd4d6,0x9aa5a8,0x7a6a53,0xded3b8];
+  var shirtColors=[0x31517d,0x7d3131,0x2e6b4f,0xd8d3c3,0xcc7722,0x44546a,0xe8e4da];
+  var dressColors=[0x7d2e4a,0x274b63,0x5b317d,0x8a3324,0x1f5f4a,0xb3541e,0x37474f,0x9c2b2e];
+  var hijabColors=[0xf2ead8,0xd9c6a5,0x8a9ba8,0xc48b9a,0x5d7a68,0xe8e0ee,0x30475e,0xffffff];
+  var trouserColors=[0x2b2b33,0x3a3f4a,0x5a4632,0x243447];
+  function shoes(w){
+    box(w||0.3,0.07,0.3,pMat(0x2a2320),0,0.035,0.04,g);
+  }
+  function trouserLegs(tc,topY,len){
+    [-0.1,0.1].forEach(function(lx){
+      var lg=new THREE.Group(); lg.position.set(lx,topY,0); g.add(lg);
+      cyl(0.068,0.055,len,pMat(tc),0,-len/2,0,lg,7);
+      box(0.11,0.06,0.25,pMat(0x2a2320),0,-len+0.02,0.05,lg);
+      legs.push(lg);
+    });
+  }
+  if(type==='woman'||type==='abaya'){
+    var dc=type==='abaya'?0x26222c:dressColors[Math.floor(rng()*dressColors.length)];
+    cyl(0.2,0.43,1.34,pMat(dc),0,0.71,0,g,10);
+    box(0.4,0.2,0.24,pMat(dc),0,1.36,0,g);
+    arms.push(pLimb(g,-0.26,1.4,0,0.56,0.055,pMat(dc)));
+    arms.push(pLimb(g,0.26,1.4,0,0.56,0.055,pMat(dc)));
+    pHead(g,1.58,'hijab',hijabColors[Math.floor(rng()*hijabColors.length)],skin,false);
+    shoes(0.28);
+  } else if(type==='galabeya'||type==='elder'){
+    var gc=galColors[Math.floor(rng()*galColors.length)];
+    cyl(0.2,0.4,1.32,pMat(gc),0,0.7,0,g,10);
+    cyl(0.12,0.155,0.14,pMat(gc),0,1.38,0,g,8);
+    arms.push(pLimb(g,-0.26,1.34,0,0.58,0.06,pMat(gc)));
+    arms.push(pLimb(g,0.26,1.34,0,0.58,0.06,pMat(gc)));
+    var hs=type==='elder'?'turban':(rng()>0.55?'taqiyah':(rng()>0.5?'turban':'hair'));
+    pHead(g,1.57,hs,0,skin,rng()>0.55);
+    if(type==='elder'){
+      var cane=cyl(0.018,0.018,0.85,pMat(0x6e5136),0.42,0.42,0.06,g,6); cane.rotation.z=0.1;
+    }
+    shoes(0.3);
+  } else if(type==='worker'){
+    var uni=0x1f4e79;
+    box(0.44,0.62,0.25,pMat(uni),0,1.14,0,g);
+    box(0.46,0.1,0.27,pMat(0x16365f),0,1.42,0,g);
+    trouserLegs(0x1c2f47,0.84,0.82);
+    arms.push(pLimb(g,-0.28,1.4,0,0.58,0.055,pMat(uni)));
+    arms.push(pLimb(g,0.28,1.4,0,0.58,0.055,pMat(uni)));
+    pHead(g,1.58,'cap',0x16365f,skin,false);
+    flag=new THREE.Group(); flag.position.set(0.34,1.62,0); g.add(flag);
+    cyl(0.016,0.016,0.85,pMat(0x8a6a42),0,0.1,0,flag,6);
+    box(0.04,0.34,0.46,pMat(0x1d9e4b),0,0.38,0.26,flag);
+  } else {
+    // shirt + trousers (child = same build, scaled down, brighter colours)
+    var sc=shirtColors[Math.floor(rng()*shirtColors.length)];
+    box(0.42,0.6,0.24,pMat(sc),0,1.13,0,g);
+    box(0.12,0.14,0.03,pMat(0xffffff),-0.1,1.22,0.13,g);
+    trouserLegs(trouserColors[Math.floor(rng()*trouserColors.length)],0.84,0.82);
+    arms.push(pLimb(g,-0.27,1.38,0,0.58,0.052,pMat(sc)));
+    arms.push(pLimb(g,0.27,1.38,0,0.58,0.052,pMat(sc)));
+    pHead(g,1.57,rng()>0.7?'taqiyah':'hair',0,skin,type==='child'?false:rng()>0.75);
+    if(type==='child') g.scale.set(0.6,0.6,0.6);
+  }
+  arms.forEach(function(a,i){ a.rotation.z=(i===0?-1:1)*0.09; });
+  g.userData.type=type; g.userData.arms=arms; g.userData.legs=legs; g.userData.flag=flag;
+  return g;
+}
+
+var stationGroups=[];var stationGroups=[];
+function makeStation(st,isFirst){
+  var g=new THREE.Group(); g.position.z=st.z;
+  var platMat=mat(0xb8b0a2,0.95), platSide=mat(0x8d8478,0.95);
+  // platform on right (x+)
+  var plat=box(7,1.15,230,platMat,7.2,0.57,0,g); plat.material=platSide;
+  box(7.2,0.12,230,mat(0xd8d2c6,0.9),7.2,1.2,0,g);
+  // yellow safety line
+  box(0.5,0.03,230,mat(0xf0c419,0.8),4.35,1.28,0,g);
+  // canopy
+  var roofMat=mat(0x7a2e22,0.8,0.15);
+  box(6.4,0.25,150,roofMat,7.4,5.6,0,g);
+  for(var i=-3;i<=3;i++){ cyl(0.12,0.12,4.4,MAT.dark,5.6,3.3,i*22,g,8); cyl(0.12,0.12,4.4,MAT.dark,9.2,3.3,i*22,g,8); }
+  // station building behind platform
+  var bld=box(10,6,60,mat(0xe3d7bd,0.95),16,3,0,g);
+  box(11,0.6,62,MAT.roof,16,6.3,0,g);
+  for(var wI=0;wI<6;wI++){ box(0.15,1.6,2.2,mat(0x2c3e46,0.4,0.3),10.9,3.4,-25+wI*10,g); }
+  // sign boards — two separate faces back-to-back so Arabic is NEVER mirrored
+  var tex=signTexture("محطة "+st.name, st.sub);
+  [-80,0,80].forEach(function(zz){
+    var signMat=new THREE.MeshBasicMaterial({map:tex,side:THREE.FrontSide});
+    // face towards approaching trains (looking +z, so sign must face -z)
+    var s1=new THREE.Mesh(new THREE.PlaneGeometry(11,2.75),signMat);
+    s1.position.set(7.2,4.1,zz-0.07); s1.rotation.y=Math.PI; g.add(s1);
+    // face for the opposite direction
+    var s2=new THREE.Mesh(new THREE.PlaneGeometry(11,2.75),signMat);
+    s2.position.set(7.2,4.1,zz+0.07); s2.rotation.y=0; g.add(s2);
+    // solid backing board between the two faces
+    box(11.15,2.9,0.12,mat(0x123c2e,0.8),7.2,4.1,zz,g);
+    cyl(0.08,0.08,2.2,MAT.dark,7.2,2.2,zz-3,g,6); cyl(0.08,0.08,2.2,MAT.dark,7.2,2.2,zz+3,g,6);
+  });
+  // benches + lamps + people
+  var rng=seededRand(st.z+31);
+  for(var bI=0;bI<6;bI++){ box(2.4,0.5,0.6,mat(0x5b4632,0.9),8.6,1.5,-70+bI*24,g); }
+  for(var lI=0;lI<5;lI++){
+    cyl(0.07,0.07,4.6,MAT.dark,4.6,3.4,-88+lI*44,g,6);
+    var lamp=new THREE.Mesh(new THREE.SphereGeometry(0.28,8,8),new THREE.MeshStandardMaterial({color:0xfff2c0,emissive:0xffdf8a,emissiveIntensity:0.7}));
+    lamp.position.set(4.6,5.75,-88+lI*44); g.add(lamp);
+  }
+  // detailed Egyptian passengers: galabeya, hijab, abaya, kids — some
+  // stroll along the platform — plus the station worker with his flag
+  var worker=makePerson(rng,'worker');
+  worker.position.set(5.2,1.26,4); worker.rotation.y=-Math.PI/2;
+  worker.userData.phase=rng()*6.28;
+  g.add(worker); stationGroups.push(worker);
+  for(var pI=0;pI<13;pI++){
+    var pg=makePerson(rng);
+    pg.position.set(5.6+rng()*3.6,1.26,-100+rng()*200);
+    pg.rotation.y=rng()*6.28;
+    pg.userData.phase=rng()*6.28;
+    if(rng()>0.6){
+      pg.userData.walkSpeed=0.35+rng()*0.45;
+      pg.userData.walkDir=rng()>0.5?1:-1;
+      pg.userData.baseZ=pg.position.z;
+      pg.userData.range=9+rng()*15;
+      pg.rotation.y=pg.userData.walkDir>0?0:Math.PI;
+    }
+    g.add(pg); stationGroups.push(pg);
+  }
+  // footbridge
+  box(0.8,0.4,1,mat(0x445058,0.7,0.4),0,0,0,g).visible=false;
+  box(15,0.5,2.4,mat(0x445058,0.7,0.4),1,6.4,-105,g);
+  [-4,6].forEach(function(xx){ box(0.5,6.4,2.2,mat(0x445058,0.7,0.4),xx,3.2,-105,g); });
+  scene.add(g); return g;
+}
+STATIONS.forEach(function(st){ makeStation(st); });
+// parked trains on siding at Banha & Tanta
+function makeParkedTrain(z,color){
+  var g=new THREE.Group(); g.position.set(-6,0,z);
+  var body=mat(color,0.5,0.35);
+  box(3,3.4,16,body,0,2.3,0,g);
+  box(3.1,0.9,16.2,mat(0xf0c419,0.6),0,1.15,0,g);
+  box(2.6,1,3,mat(0x1c262b,0.4,0.3),0,3.4,-5,g);
+  for(var i=0;i<4;i++){
+    box(3,3,13,mat(0x9fb3ba,0.5,0.3),0,2.25,16+i*14.5,g);
+    box(3.05,0.7,13.1,mat(0x14532d,0.6),0,2.9,16+i*14.5,g);
+  }
+  scene.add(g);
+}
+makeParkedTrain(2650,0x16365f);
+makeParkedTrain(4900,0x16365f);
+// opposing moving train
+var oppTrain=new THREE.Group(); oppTrain.visible=false;
+(function(){
+  var body=mat(0x274b63,0.5,0.35);
+  box(3,3.4,17,body,0,2.3,8.5,oppTrain);
+  box(2.7,1.1,0.3,mat(0xbfd9e2,0.3,0.4),0,3.1,17.1,oppTrain);
+  for(var i=0;i<5;i++){ box(3,3,13.5,mat(0xaebfca,0.5,0.3),0,2.25,-8-i*14.5,oppTrain); }
+  oppTrain.position.set(-6,0,-9999); scene.add(oppTrain);
+})();
+var opp={active:false,z:0,passed:false,horned:false};
+// level crossings
+[1750,7050,10200].forEach(function(z){
+  var g=new THREE.Group(); g.position.z=z;
+  box(26,0.06,7,mat(0x3a3f42,0.9),0,0.06,0,g);
+  [-9,9].forEach(function(xx){
+    cyl(0.07,0.07,3.4,MAT.dark,xx,1.7,4.5,g,6);
+    box(0.1,1.1,1.1,mat(0xe63946,0.6),xx,3.1,4.5,g);
+    box(3.4,0.18,0.18,mat(0xf2f2ee,0.6),xx>0?xx-1.6:xx+1.6,2.9,4.2,g).rotation.z=xx>0?0.5:-0.5;
+  });
+  scene.add(g);
+});
+// ---------- signals ----------
+var SIGNALS=[];
+(function(){
+  var redSpots=[3550,9850];
+  for(var z=1300;z<ROUTE-400;z+=1350){
+    var nearSt=STATIONS.some(function(s){return Math.abs(s.z-z)<330;});
+    if(nearSt) continue;
+    var type='green';
+    for(var r=0;r<redSpots.length;r++){ if(Math.abs(z-redSpots[r])<700) type='red'; }
+    SIGNALS.push({z:z,type:type,state:type==='red'?'red':'green',passed:false,greenAt:0});
+  }
+  // yellow approach signals 650m before each intermediate+final station
+  STATIONS.slice(1).forEach(function(s){
+    SIGNALS.push({z:s.z-650,type:'yellow',state:'yellow',passed:false,greenAt:0});
+  });
+  SIGNALS.sort(function(a,b){return a.z-b.z;});
+  SIGNALS.forEach(function(sig){
+    var g=new THREE.Group(); g.position.set(4.6,0,sig.z);
+    cyl(0.09,0.11,5.4,mat(0x30383d,0.6,0.5),0,2.7,0,g,8);
+    box(0.7,1.7,0.45,mat(0x141a1d,0.6,0.3),0,5.6,0,g);
+    sig.lights={};
+    [['red',6.25,0xff2222],['yellow',5.6,0xffbb22],['green',4.95,0x22dd66]].forEach(function(L){
+      var m=new THREE.Mesh(new THREE.SphereGeometry(0.21,10,10),
+        new THREE.MeshStandardMaterial({color:0x222222,emissive:L[2],emissiveIntensity:0}));
+      m.position.set(0,L[1],-0.3); g.add(m); sig.lights[L[0]]=m;
+    });
+    box(1.4,0.16,0.16,mat(0x30383d,0.6,0.5),0,4.2,0,g);
+    scene.add(g); sig.group=g;
+  });
+})();
+function setSignalVisual(sig){
+  for(var k in sig.lights){ sig.lights[k].material.emissiveIntensity = (sig.state===k)?1.6:0.02; }
+}
+SIGNALS.forEach(setSignalVisual);
+// ---------- cab interior — ENR diesel locomotive cab, built like the real thing ----------
+// Layout follows a real Egyptian National Railways diesel cab (GE/Henschel
+// type): a full-width black control desk under a two-pane windshield, a big
+// speedometer with a moving needle flanked by brake-pipe and main-reservoir
+// pressure gauges and an engine gauge, a row of indicator lamps and toggle
+// switches, the throttle stand on the driver's right and the automatic
+// brake stand on the left (both levers move with the phone controls),
+// a reverser in the centre, two sprung cab seats, ceiling fan and dome
+// light, side sliding windows, mirrors, wipers and a fire extinguisher.
+var cab=new THREE.Group(); scene.add(cab);
+var cabMats={shell:mat(0x16365f,0.48,0.3),dash:mat(0x171d21,0.5,0.35),trim:mat(0xf0a51f,0.5,0.2)};
+var lampSigG=null, lampSigR=null, lampEngine=null, rpmNeedle=null, resNeedle=null;
+// ---- gauge face textures (drawn dials: ticks, numbers, red zone) ----
+function gaugeTexture(maxVal,stepVal,unit,label,redFrom){
+  var cv=document.createElement('canvas'); cv.width=256; cv.height=256;
+  var c=cv.getContext('2d');
+  c.fillStyle='#101314'; c.beginPath(); c.arc(128,128,126,0,6.29); c.fill();
+  c.fillStyle='#ece7d7'; c.beginPath(); c.arc(128,128,114,0,6.29); c.fill();
+  c.strokeStyle='#20242a'; c.lineWidth=3; c.beginPath(); c.arc(128,128,114,0,6.29); c.stroke();
+  if(redFrom!=null){
+    c.strokeStyle='#c0272d'; c.lineWidth=13;
+    c.beginPath();
+    var a0=2.35-(redFrom/maxVal)*4.7, a1=2.35-4.7;
+    // canvas arc uses screen angles; convert needle dir (-sin t, cos t in face space, y up)
+    function pt(th,r){ return [128-Math.sin(th)*r, 128-Math.cos(th)*r]; }
+    var p0=pt(a0,100), p1=pt(a1,100);
+    c.beginPath(); c.arc(128,128,100, Math.atan2(p0[1]-128,p0[0]-128), Math.atan2(p1[1]-128,p1[0]-128), false); c.stroke();
+  }
+  c.fillStyle='#20242a'; c.textAlign='center'; c.textBaseline='middle';
+  for(var v=0;v<=maxVal+0.01;v+=stepVal){
+    var f=v/maxVal, th=2.35-f*4.7;
+    var dx=-Math.sin(th), dy=Math.cos(th);
+    var x1=128+dx*88, y1=128-dy*88, x2=128+dx*104, y2=128-dy*104;
+    c.strokeStyle='#20242a'; c.lineWidth=4;
+    c.beginPath(); c.moveTo(x1,y1); c.lineTo(x2,y2); c.stroke();
+    c.font='900 25px Arial';
+    c.fillText(String(Math.round(v)),128+dx*66,128-dy*66);
+    // minor ticks
+    for(var mI=1;mI<5;mI++){
+      var mv=v+stepVal*mI/5; if(mv>maxVal)break;
+      var mf=mv/maxVal, mth=2.35-mf*4.7, mdx=-Math.sin(mth), mdy=Math.cos(mth);
+      c.lineWidth=2; c.beginPath();
+      c.moveTo(128+mdx*96,128-mdy*96); c.lineTo(128+mdx*104,128-mdy*104); c.stroke();
+    }
+  }
+  c.font='700 19px Arial'; c.fillStyle='#4a4238';
+  c.fillText(unit,128,168);
+  c.font='700 17px Cairo, Arial'; c.fillText(label,128,192);
+  var t=new THREE.CanvasTexture(cv); t.encoding=THREE.sRGBEncoding; return t;
+}
+function panelLabelTexture(){
+  var cv=document.createElement('canvas'); cv.width=1024; cv.height=64;
+  var c=cv.getContext('2d');
+  c.fillStyle='#10151a'; c.fillRect(0,0,1024,64);
+  c.fillStyle='#ffd98a'; c.textAlign='center'; c.font='700 30px Cairo, Arial';
+  c.fillText('سكك حديد مصر  ENR  ·  جرار ديزل 2407  ·  القاهرة — الإسكندرية',512,42);
+  var t=new THREE.CanvasTexture(cv); t.encoding=THREE.sRGBEncoding; return t;
+}
+function stripeTexture(){
+  var cv=document.createElement('canvas'); cv.width=256; cv.height=32;
+  var c=cv.getContext('2d');
+  for(var i=0;i<8;i++){ c.fillStyle=i%2?'#15181a':'#f0c419'; c.save(); c.translate(i*32,0); c.transform(1,0,-0.6,1,10,0); c.fillRect(0,0,32,32); c.restore(); }
+  var t=new THREE.CanvasTexture(cv); t.wrapS=THREE.RepeatWrapping; t.repeat.x=6; t.encoding=THREE.sRGBEncoding; return t;
+}
+function timetableTexture(){
+  var cv=document.createElement('canvas'); cv.width=256; cv.height=340;
+  var c=cv.getContext('2d');
+  c.fillStyle='#f4efe0'; c.fillRect(0,0,256,340);
+  c.fillStyle='#16365f'; c.fillRect(0,0,256,52);
+  c.fillStyle='#fff'; c.textAlign='center'; c.font='900 24px Cairo, Arial'; c.fillText('جدول الرحلة',128,35);
+  c.strokeStyle='#9aa2a8'; c.lineWidth=2;
+  var rows=['القاهرة  09:00','بنها  09:35','طنطا  10:12','دمنهور  10:48','الإسكندرية  11:28'];
+  c.fillStyle='#22262a'; c.font='700 21px Cairo, Arial'; c.textAlign='right';
+  rows.forEach(function(r,i){ c.fillText(r,238,92+i*46); c.beginPath(); c.moveTo(14,106+i*46); c.lineTo(242,106+i*46); c.stroke(); });
+  var t=new THREE.CanvasTexture(cv); t.encoding=THREE.sRGBEncoding; return t;
+}
+(function buildCab(){
+  var blue=cabMats.shell, darkM=mat(0x141a1d,0.6,0.3), steel=mat(0x9aa2a8,0.35,0.8),
+      lining=mat(0x8f969a,0.85,0.05), liningLow=mat(0x596066,0.8,0.1),
+      fabric=mat(0x27364a,0.95,0), black=mat(0x0f1316,0.6,0.3);
+  // ===== short nose ahead — like the real ENR cab-front locomotive =====
+  // The cab sits at the FRONT of the locomotive, so through the windshield
+  // the driver sees only a SHORT, WIDE nose (same width as the cab, same
+  // nose as the exterior model: white band, sloped top, grille, headlights,
+  // red plow stripe) — NOT a long thin hood running down the middle.
+  var hoodMat=mat(0x16365f,0.42,0.35);
+  box(2.86,1.06,2.4,hoodMat,0,1.28,3.3,cab); // nose body: z 2.1 -> 4.5, top at 1.81
+  var noseSlope=box(2.86,0.8,0.14,hoodMat,0,1.78,4.42,cab); noseSlope.rotation.x=-0.5; // sloped front top
+  box(2.9,0.3,2.44,mat(0xf2f2ee,0.5,0.1),0,1.52,3.3,cab); // white band across the full width
+  box(2.9,0.2,2.44,mat(0x2f7fc4,0.5,0.2),0,1.24,3.3,cab); // light-blue stripe under it
+  box(1.2,0.55,0.08,mat(0x141a1d,0.6,0.3),0,1.05,4.52,cab); // front grille
+  box(2.5,0.4,0.2,mat(0xd9232e,0.5,0.2),0,0.62,4.48,cab); // red plow stripe
+  [-0.92,0.92].forEach(function(hx){ // headlights on the nose front
+    var hl=new THREE.Mesh(new THREE.SphereGeometry(0.15,10,10),
+      new THREE.MeshStandardMaterial({color:0xffe98a,emissive:0xffe98a,emissiveIntensity:1.4}));
+    hl.position.set(hx,1.78,4.5); cab.add(hl);
+    var dl=new THREE.Mesh(new THREE.SphereGeometry(0.1,10,10),
+      new THREE.MeshStandardMaterial({color:0xfff6cc,emissive:0xfff6cc,emissiveIntensity:1.0}));
+    dl.position.set(hx*1.18,0.98,4.53); cab.add(dl);
+  });
+  box(0.55,0.34,0.06,mat(0xf0c419,0.5,0.3),0,1.32,4.53,cab); // ENR number plate 2407 board
+  [-1,1].forEach(function(sd){
+    box(0.34,0.06,2.4,mat(0x2b3237,0.7,0.3),sd*1.58,0.78,3.3,cab); // short side walkway
+    var hr=cyl(0.022,0.022,2.3,steel,sd*1.72,1.62,3.3,cab,6); hr.rotation.x=Math.PI/2;
+    [2.45,3.3,4.15].forEach(function(off){ cyl(0.018,0.018,0.8,steel,sd*1.72,1.2,off,cab,6); });
+  });
+  // ===== floor: steel plate + anti-slip strips + pedals =====
+  box(3.6,0.14,3.6,mat(0x23282c,0.85,0.25),0,0.55,0.55,cab);
+  for(var fsI=0;fsI<5;fsI++){ box(3.3,0.02,0.09,mat(0x3a4147,0.7,0.4),0,0.63,-0.9+fsI*0.75,cab); }
+  [-0.35,0.35].forEach(function(px){ var pd=box(0.34,0.06,0.5,black,px,0.68,1.15,cab); pd.rotation.x=0.5; });
+  box(0.5,0.05,0.34,black,0,0.66,0.95,cab); // deadman pedal plate
+  // ===== ceiling: lining, dome light, fan, radio speaker =====
+  box(3.6,0.16,3.6,mat(0xb9bcb8,0.9,0),0,4.18,0.55,cab);
+  var dome=box(0.7,0.07,0.34,new THREE.MeshStandardMaterial({color:0xfff3cf,emissive:0xffe9a8,emissiveIntensity:0.85,roughness:0.5}),0,4.08,0.55,cab);
+  var fan=new THREE.Group(); fan.position.set(-1.05,4.06,0.5); cab.add(fan);
+  cyl(0.09,0.09,0.12,darkM,0,0.05,0,fan,10);
+  for(var fb=0;fb<3;fb++){ var bl=box(0.52,0.02,0.16,mat(0x6a7176,0.6,0.4),0.3,0,0,fan); var hold=new THREE.Group(); hold.rotation.y=fb*2.094; hold.add(bl); bl.position.x=0.3; fan.add(hold); }
+  cab.userData.fan=fan;
+  box(0.62,0.1,0.4,darkM,1.05,4.1,0.5,cab); // radio / speaker box
+  for(var sgI=0;sgI<4;sgI++){ box(0.5,0.02,0.05,black,1.05,4.04,0.38+sgI*0.08,cab); }
+  // ===== back wall: blue outside, lined inside, cab door + cabinet =====
+  box(3.6,4,0.16,blue,0,2.32,-1.2,cab);
+  box(3.44,3.4,0.05,liningLow,0,2.3,-1.1,cab);
+  box(0.92,2.5,0.07,darkM,-0.95,1.9,-1.06,cab); // rear door outline
+  box(0.6,0.7,0.04,mat(0x9fc4d8,0.2,0.5),-0.95,2.75,-1.02,cab);
+  cyl(0.035,0.035,0.05,steel,-0.6,1.85,-1.0,cab,8).rotation.x=Math.PI/2;
+  box(1.15,2.1,0.09,mat(0x4a5157,0.7,0.3),1.05,1.95,-1.05,cab); // electrical cabinet
+  for(var vt=0;vt<6;vt++){ box(0.9,0.05,0.03,black,1.05,1.35+vt*0.22,-0.99,cab); }
+  // fire extinguisher on the back-right corner
+  var ext=cyl(0.11,0.11,0.52,mat(0xc0272d,0.45,0.3),1.58,0.95,-0.85,cab,12);
+  cyl(0.03,0.03,0.14,black,1.58,1.28,-0.85,cab,8);
+  box(0.3,0.05,0.3,darkM,1.58,0.66,-0.85,cab);
+  // ===== front bulkhead + windshield frame =====
+  box(3.6,1.35,0.2,blue,0,1.22,2.08,cab);
+  box(3.6,0.34,0.22,blue,0,4.02,2.08,cab);
+  box(0.24,2.35,0.24,blue,-1.7,2.95,2.08,cab);
+  box(0.24,2.35,0.24,blue,1.7,2.95,2.08,cab);
+  // NO centre post: one wide windshield, so there is no line down the
+  // middle of the driver's view.
+  // frame bolts
+  [-1.7,1.7].forEach(function(bx){ [-0.9,0.9].forEach(function(by){ var bt=cyl(0.028,0.028,0.05,steel,bx,3.0+by,2.21,cab,6); bt.rotation.x=Math.PI/2; }); });
+  // one wide windshield pane
+  var glassMat=new THREE.MeshPhysicalMaterial({color:0xcfe6ef,transparent:true,opacity:0.10,roughness:0.06,metalness:0,depthWrite:false});
+  var gl=new THREE.Mesh(new THREE.PlaneGeometry(3.3,1.98),glassMat);
+  gl.position.set(0,2.98,2.09); cab.add(gl);
+  // sun visors above the windshield (inside)
+  [-0.86,0.86].forEach(function(gx){
+    var vs=box(1.45,0.5,0.03,mat(0x18242c,0.55,0.1),gx,3.78,1.92,cab); vs.rotation.x=0.5;
+  });
+  // wipers: one per pane, pivoting at the bottom like the real ones
+  var wipers=[];
+  [-0.86,0.86].forEach(function(wx){
+    var wg=new THREE.Group(); wg.position.set(wx,2.06,2.22); cab.add(wg);
+    var arm=cyl(0.016,0.016,0.78,black,0,0.39,0,wg,6);
+    box(0.05,0.62,0.025,black,0,0.92,0,wg);
+    wg.rotation.z=0.45; wipers.push(wg);
+  });
+  cab.userData.wipers=wipers; cab.userData.wiper=wipers[0];
+  // mirrors on arms outside the pillars
+  [-1,1].forEach(function(sd){
+    var ma=cyl(0.025,0.025,0.5,steel,sd*1.92,3.45,2.1,cab,6); ma.rotation.z=Math.PI/2;
+    box(0.06,0.5,0.34,darkM,sd*2.18,3.42,2.1,cab);
+    box(0.02,0.42,0.27,mat(0xd7e6ee,0.08,0.9),sd*2.14,3.42,2.1,cab);
+  });
+  // cab number / route plate inside the header
+  var plate=new THREE.Mesh(new THREE.PlaneGeometry(1.7,0.11),new THREE.MeshBasicMaterial({map:panelLabelTexture()}));
+  plate.position.set(0,3.92,1.96); plate.rotation.x=0.25; cab.add(plate);
+  // ===== side walls + sliding windows =====
+  [-1,1].forEach(function(sd){
+    box(0.16,1.32,3.5,liningLow,sd*1.73,1.28,0.55,cab);
+    box(0.16,0.78,3.5,blue,sd*1.73,3.78,0.55,cab);
+    box(0.16,3.4,0.22,blue,sd*1.73,2.3,2.22,cab);
+    box(0.16,3.4,0.22,blue,sd*1.73,2.3,-1.12,cab);
+    // sliding window glass + frame + rail
+    var sgl=new THREE.Mesh(new THREE.PlaneGeometry(1.9,1.05),glassMat);
+    sgl.rotation.y=sd>0?-Math.PI/2:Math.PI/2; sgl.position.set(sd*1.74,2.95,0.75); cab.add(sgl);
+    box(0.06,0.07,2.1,darkM,sd*1.72,3.5,0.6,cab);
+    box(0.06,0.07,2.1,darkM,sd*1.72,2.42,0.6,cab);
+    box(0.06,1.12,0.07,darkM,sd*1.72,2.95,1.62,cab);
+    box(0.2,0.05,0.3,steel,sd*1.66,2.5,1.45,cab); // window latch / sill handle
+    // grab handle by the door side
+    var gh=cyl(0.02,0.02,0.6,steel,sd*1.62,2.2,2.0,cab,6);
+  });
+  // ===== THE CONTROL DESK =====
+  // lower body + knee recess
+  box(3.3,0.62,0.8,mat(0x22282d,0.65,0.3),0,0.93,1.72,cab);
+  box(1.1,0.5,0.6,mat(0x11161a,0.7,0.2),0,0.88,1.66,cab);
+  // horizontal desk top
+  box(3.3,0.09,0.95,mat(0x2b3238,0.55,0.35),0,1.28,1.7,cab);
+  // hazard stripe along the desk front edge
+  var stripe=new THREE.Mesh(new THREE.PlaneGeometry(3.3,0.09),new THREE.MeshBasicMaterial({map:stripeTexture()}));
+  stripe.position.set(0,1.2,2.13); cab.add(stripe);
+  // sloped instrument panel
+  var panel=new THREE.Group(); panel.position.set(0,1.68,1.94); panel.rotation.x=-0.30; cab.add(panel);
+  box(3.3,0.78,0.14,cabMats.dash,0,0,0,panel);
+  box(3.34,0.06,0.17,cabMats.trim,0,0.42,0,panel);
+  box(3.34,0.06,0.17,mat(0x0d1114,0.6,0.3),0,-0.42,0,panel);
+  // timetable clipboard on the desk (left) + radio handset (right)
+  var clip=new THREE.Group(); clip.position.set(-1.28,1.36,1.62); clip.rotation.x=-Math.PI/2+0.12; clip.rotation.z=0.18; cab.add(clip);
+  var paper=new THREE.Mesh(new THREE.PlaneGeometry(0.42,0.56),new THREE.MeshStandardMaterial({map:timetableTexture(),roughness:0.9}));
+  clip.add(paper);
+  box(0.16,0.05,0.03,steel,0,0.29,0.012,clip);
+  box(0.34,0.16,0.07,black,1.3,1.36,1.66,cab); // radio handset cradle
+  box(0.1,0.3,0.06,black,1.3,1.48,1.66,cab);
+  // toggle switches row on the desk riser
+  for(var tsI=0;tsI<6;tsI++){
+    var tsw=cyl(0.018,0.024,0.11,steel,-0.55+tsI*0.22,1.36,1.98,cab,6); tsw.rotation.x=0.6;
+    cyl(0.032,0.032,0.03,black,-0.55+tsI*0.22,1.325,1.96,cab,8).rotation.x=0.6;
+  }
+  // physical push-buttons on the desk: horn (yellow), headlight (white),
+  // doors (green) and the red emergency mushroom
+  function deskButton(x,color,r){
+    cyl(r*1.25,r*1.35,0.035,darkM,x,1.335,1.86,cab,14);
+    var b=cyl(r,r,0.05,new THREE.MeshStandardMaterial({color:color,emissive:color,emissiveIntensity:0.25,roughness:0.4}),x,1.37,1.86,cab,14);
+    return b;
+  }
+  cab.userData.btnHorn3d=deskButton(0.62,0xf0c419,0.055);
+  cab.userData.btnLight3d=deskButton(0.86,0xe8e4d8,0.045);
+  cab.userData.btnDoor3d=deskButton(1.10,0x2fae5f,0.045);
+  cyl(0.035,0.035,0.07,darkM,-0.98,1.36,1.86,cab,8);
+  cyl(0.075,0.075,0.045,new THREE.MeshStandardMaterial({color:0xd9232e,emissive:0xd9232e,emissiveIntensity:0.3,roughness:0.4}),-0.98,1.41,1.86,cab,14);
+})();
+// ---- gauges on the sloped panel (faces drawn, needles pivot) ----
+function makeGauge(x,y,r,tex,needleColor){
+  var g=new THREE.Group(); g.position.set(x,y,2.02); g.rotation.x=-0.30;
+  var rim=new THREE.Mesh(new THREE.TorusGeometry(r,r*0.10,10,28),mat(0x777f85,0.3,0.85));
+  g.add(rim);
+  var face=new THREE.Mesh(new THREE.CircleGeometry(r,28),new THREE.MeshStandardMaterial({map:tex,roughness:0.55}));
+  face.position.z=0.005; g.add(face);
+  var pivot=new THREE.Group(); pivot.position.z=0.035; g.add(pivot);
+  var needle=box(0.028,r*0.82,0.014,mat(needleColor||0xc0272d,0.45),0,r*0.30,0,pivot);
+  var hub=cyl(r*0.13,r*0.13,0.05,mat(0x14181b,0.4,0.6),0,0,0.01,pivot,12); hub.rotation.x=Math.PI/2;
+  cab.add(g);
+  return pivot;
+}
+var speedNeedle=makeGauge(-0.60,1.76,0.32,gaugeTexture(140,20,'كم/ساعة','السرعة',120));
+var brakeNeedle=makeGauge(0.30,1.86,0.195,gaugeTexture(10,2,'بار','ضغط الفرامل',null));
+resNeedle=makeGauge(0.76,1.86,0.195,gaugeTexture(10,2,'بار','الخزان الرئيسي',null));
+rpmNeedle=makeGauge(-1.28,1.86,0.195,gaugeTexture(16,4,'×100','لفات الموتور',14));
+// indicator lamps row: doors / signal green / signal red / engine
+function dashLamp(x,color){
+  var m=new THREE.Mesh(new THREE.SphereGeometry(0.048,10,10),new THREE.MeshStandardMaterial({color:0x1c1f22,emissive:color,emissiveIntensity:0}));
+  m.position.set(x,1.44,2.00); cab.add(m);
+  cyl(0.062,0.062,0.03,mat(0x777f85,0.3,0.85),x,1.44,1.97,cab,12).rotation.x=Math.PI/2-0.30;
+  return m;
+}
+var lampDoor=dashLamp(0.52,0xff3333);
+lampSigG=dashLamp(0.78,0x22dd66);
+lampSigR=dashLamp(1.04,0xff2222);
+lampEngine=dashLamp(1.30,0xffaa22);
+// ---- control stands: throttle (right), automatic brake (left), reverser (centre) ----
+function quadrantTexture(max,label){
+  var cv=document.createElement('canvas'); cv.width=256; cv.height=128;
+  var c=cv.getContext('2d');
+  c.fillStyle='#22282d'; c.fillRect(0,0,256,128);
+  c.fillStyle='#f0ead8'; c.textAlign='center'; c.font='900 30px Arial';
+  for(var i=0;i<=max;i++){ c.fillText(String(i),26+i*(204/max),44); c.fillRect(22+i*(204/max),56,3,20); }
+  c.font='700 24px Cairo, Arial'; c.fillStyle='#ffd98a'; c.fillText(label,128,112);
+  var t=new THREE.CanvasTexture(cv); t.encoding=THREE.sRGBEncoding; return t;
+}
+function makeLever(x,color,isBrake,max,label){
+  var g=new THREE.Group(); g.position.set(x,1.30,1.42); cab.add(g);
+  // pedestal rising from the desk
+  box(0.40,0.30,0.56,mat(0x22282d,0.6,0.35),0,-0.10,-0.02,g);
+  box(0.44,0.05,0.60,mat(0x11161a,0.6,0.3),0,0.06,-0.02,g);
+  // quadrant plate with the notch numbers
+  var qp=new THREE.Mesh(new THREE.PlaneGeometry(0.52,0.26),new THREE.MeshStandardMaterial({map:quadrantTexture(max,label),roughness:0.6}));
+  qp.position.set(x+(x>0?0.235:-0.235),1.42,1.42); qp.rotation.y=x>0?Math.PI/2:-Math.PI/2; cab.add(qp);
+  // pivot + stick + handle
+  var stick=new THREE.Group(); stick.position.set(0,0.06,0); g.add(stick);
+  var axle=cyl(0.045,0.045,0.30,mat(0x777f85,0.3,0.85),0,0,0,stick,10); axle.rotation.z=Math.PI/2;
+  var rod=cyl(0.034,0.042,0.52,mat(0x9aa2a8,0.3,0.85),0,0.28,0,stick,8);
+  if(isBrake){
+    var hd=cyl(0.045,0.045,0.34,mat(color,0.45,0.2),0,0.56,0,stick,10); hd.rotation.z=Math.PI/2;
+    box(0.10,0.09,0.16,mat(color,0.45,0.2),0,0.56,0,stick);
+  } else {
+    var hd2=cyl(0.05,0.05,0.36,mat(0x14181b,0.5,0.2),0,0.56,0,stick,10); hd2.rotation.z=Math.PI/2;
+    box(0.12,0.08,0.14,mat(0x14181b,0.5,0.2),0,0.56,0,stick);
+  }
+  return stick;
+}
+var thrLever=makeLever(1.08,0xf0a51f,false,8,'الخانق');
+var brkLever=makeLever(-1.08,0xd9232e,true,5,'الفرامل');
+// reverser lever in the centre of the desk + small independent brake
+(function(){
+  var g=new THREE.Group(); g.position.set(0.02,1.30,1.30); cab.add(g);
+  box(0.26,0.20,0.36,mat(0x22282d,0.6,0.35),0,-0.05,0,g);
+  var st=new THREE.Group(); st.position.set(0,0.05,0); st.rotation.x=-0.15; g.add(st);
+  cyl(0.026,0.026,0.34,mat(0x9aa2a8,0.3,0.85),0,0.17,0,st,8);
+  var kb=new THREE.Mesh(new THREE.SphereGeometry(0.062,10,10),mat(0x14181b,0.5,0.2)); kb.position.y=0.36; st.add(kb);
+  cab.userData.reverser=st;
+  var g2=new THREE.Group(); g2.position.set(-0.62,1.30,1.36); cab.add(g2);
+  box(0.24,0.18,0.34,mat(0x22282d,0.6,0.35),0,-0.04,0,g2);
+  var st2=new THREE.Group(); st2.position.set(0,0.05,0); st2.rotation.x=0.3; g2.add(st2);
+  cyl(0.024,0.024,0.30,mat(0x9aa2a8,0.3,0.85),0,0.15,0,st2,8);
+  var kb2=new THREE.Mesh(new THREE.SphereGeometry(0.055,10,10),mat(0xd9232e,0.45,0.2)); kb2.position.y=0.32; st2.add(kb2);
+})();
+// ---- cab seats: sprung bases, cushions, backrests, armrests ----
+function makeSeat(x){
+  var fabric=mat(0x27364a,0.95,0);
+  var g=new THREE.Group(); g.position.set(x,0, -0.62); cab.add(g);
+  cyl(0.16,0.20,0.30,mat(0x14181b,0.6,0.4),0,0.78,0,g,12);
+  box(0.44,0.10,0.44,mat(0x14181b,0.6,0.3),0,0.66,0,g);
+  box(0.68,0.16,0.62,fabric,0,1.0,0,g);
+  box(0.70,0.05,0.64,mat(0x1b2838,0.95,0),0,1.10,0,g);
+  var back=box(0.68,0.85,0.15,fabric,0,1.55,-0.30,g); back.rotation.x=-0.10;
+  box(0.34,0.18,0.12,fabric,0,2.06,-0.35,g);
+  [-0.40,0.40].forEach(function(ax){ box(0.07,0.07,0.44,fabric,ax,1.32,0.02,g); cyl(0.025,0.025,0.24,mat(0x14181b,0.6,0.4),ax,1.18,0.16,g,8); });
+  return g;
+}
+makeSeat(1.02); makeSeat(-1.02);
+
+// ---------- player train exterior — Egyptian National Railways (ENR) ----------
+// Livery matched to real Egypt trains: dark-blue locomotive, white/light-blue
+// stripes, silver-white coaches with a thick blue window band.
+function enrSideTexture(isLoco){
+  var cv=document.createElement('canvas'); cv.width=2048; cv.height=512;
+  var c=cv.getContext('2d');
+  if(isLoco){
+    c.fillStyle='#16365f'; c.fillRect(0,0,2048,512);
+    c.fillStyle='#1b4070'; c.fillRect(0,0,2048,120);
+    c.fillStyle='#122c4e'; c.fillRect(0,392,2048,120);
+    c.fillStyle='#f2f2ee'; c.fillRect(0,205,2048,58);
+    c.fillStyle='#2f7fc4'; c.fillRect(0,263,2048,34);
+    c.fillStyle='#d9232e'; c.fillRect(0,452,2048,16);
+    // radiator grilles on the long hood
+    c.fillStyle='#0b1e38';
+    for(var gi=0;gi<7;gi++){ c.fillRect(1180+gi*112,58,84,122); }
+    c.fillStyle='rgba(255,255,255,0.13)';
+    for(var gj=0;gj<7;gj++){ for(var gl=0;gl<5;gl++){ c.fillRect(1180+gj*112,72+gl*22,84,6); } }
+    // cab and hood door outlines
+    c.strokeStyle='rgba(0,0,0,0.45)'; c.lineWidth=5;
+    c.strokeRect(90,40,300,330); c.strokeRect(470,60,220,300); c.strokeRect(760,60,220,300);
+    c.fillStyle='#ffffff'; c.textAlign='center';
+    c.font='900 92px Cairo, Arial'; c.fillText('سكك حديد مصر',560,150);
+    c.font='900 62px Arial'; c.fillText('ENR',560,362);
+    c.font='700 46px Arial'; c.fillStyle='#ffd23f'; c.fillText('2407',1770,362);
+  } else {
+    c.fillStyle='#e9edf1'; c.fillRect(0,0,2048,512);
+    // stainless-steel fluting under the windows
+    c.fillStyle='rgba(90,105,120,0.20)';
+    for(var fl2=0;fl2<9;fl2++){ c.fillRect(0,332+fl2*18,2048,5); }
+    // blue window band (the windows themselves are real 3D glass)
+    c.fillStyle='#1a4a8a'; c.fillRect(0,120,2048,170);
+    c.fillStyle='#16365f'; c.fillRect(0,290,2048,16);
+    c.fillStyle='#d9232e'; c.fillRect(0,470,2048,12);
+    c.fillStyle='#16365f'; c.textAlign='center';
+    c.font='900 56px Cairo, Arial';
+    c.fillText('سكك حديد مصر',1024,86);
+    c.font='900 40px Cairo, Arial'; c.fillStyle='#8a1f2d';
+    c.fillText('الدرجة الثانية المكيفة',1024,428);
+    c.font='900 54px Arial'; c.fillStyle='#16365f';
+    c.fillText('2',90,428); c.fillText('2',1958,428);
+  }
+  var t=new THREE.CanvasTexture(cv); t.encoding=THREE.sRGBEncoding; return t;
+}
+
+var playerTrain=new THREE.Group(); playerTrain.visible=false; scene.add(playerTrain);
+(function buildEgyptTrain(){
+  var blue=mat(0x16365f,0.42,0.35), blue2=mat(0x2f7fc4,0.45,0.3),
+      white=mat(0xf2f2ee,0.55,0.15), silver=mat(0xd9dee3,0.38,0.45),
+      darkM=mat(0x141a1d,0.6,0.3), glassM=mat(0x9fc4d8,0.16,0.65),
+      glassDark=mat(0x16242e,0.25,0.5),
+      roofM=mat(0x9aa2a8,0.55,0.4), redM=mat(0xd9232e,0.5,0.2);
+  var locoTex=enrSideTexture(true), coachTex=enrSideTexture(false);
+  function sidePlanes(tex,w,h,y,z,parent,dist){
+    [-1,1].forEach(function(side){
+      var p=new THREE.Mesh(new THREE.PlaneGeometry(w,h),
+        new THREE.MeshStandardMaterial({map:tex,roughness:0.48,metalness:0.25,side:THREE.FrontSide}));
+      p.position.set(side*(dist||1.53),y,z); p.rotation.y=side>0?Math.PI/2:-Math.PI/2;
+      if(side<0){ p.scale.x=-1; }
+      parent.add(p);
+    });
+  }
+  function wheel(parent,x,y,z,r){
+    var wh=cyl(r,r,0.16,darkM,x,y,z,parent,14); wh.rotation.z=Math.PI/2;
+    var hub=cyl(r*0.36,r*0.36,0.2,roofM,x,y,z,parent,10); hub.rotation.z=Math.PI/2;
+  }
+  function bogie(parent,cz,axles,wr,len){
+    box(1.9,0.3,len,darkM,0,0.68,cz,parent);
+    box(0.22,0.44,len-0.5,darkM,-0.93,0.58,cz,parent);
+    box(0.22,0.44,len-0.5,darkM,0.93,0.58,cz,parent);
+    for(var ai=0;ai<axles;ai++){
+      var az=cz+(ai-(axles-1)/2)*(len/axles);
+      var ax=cyl(0.09,0.09,1.7,darkM,0,wr,az,parent,8); ax.rotation.z=Math.PI/2;
+      wheel(parent,-0.8,wr,az,wr); wheel(parent,0.8,wr,az,wr);
+      cyl(0.13,0.13,0.32,roofM,-0.95,0.82,az,parent,8);
+      cyl(0.13,0.13,0.32,roofM,0.95,0.82,az,parent,8);
+    }
+  }
+  function lightBall(x,y,z,r,color,inten,parent){
+    var m=new THREE.Mesh(new THREE.SphereGeometry(r,10,10),
+      new THREE.MeshStandardMaterial({color:color,emissive:color,emissiveIntensity:inten}));
+    m.position.set(x,y,z); parent.add(m); return m;
+  }
+  // --- locomotive: ENR diesel, front at z=0, body to z=-19 ---
+  var loco=new THREE.Group(); playerTrain.add(loco);
+  box(2.9,0.5,18.8,darkM,0,0.98,-9.4,loco);
+  // fuel tank + side air reservoirs
+  box(2.1,0.75,5.2,mat(0x232a2f,0.6,0.4),0,0.5,-9.4,loco);
+  [-1.18,1.18].forEach(function(tx){
+    var tk=cyl(0.3,0.3,2.6,darkM,tx,0.52,-13.6,loco,10); tk.rotation.x=Math.PI/2;
+  });
+  // long hood + roof + radiator fans + exhaust
+  box(2.92,2.0,11.2,blue,0,2.2,-13.2,loco);
+  box(3.0,0.16,11.4,roofM,0,3.28,-13.2,loco);
+  [-16.8,-13.2,-9.6].forEach(function(fz){ cyl(0.55,0.55,0.14,darkM,0,3.4,fz,loco,16); });
+  box(0.8,0.35,1.6,darkM,0,3.45,-7.2,loco);
+  // cab block, roof, windshields with wipers, side windows, mirrors
+  box(3.0,3.05,4.4,blue,0,2.72,-4.3,loco);
+  box(3.12,0.22,4.9,roofM,0,4.36,-4.3,loco);
+  [-0.76,0.76].forEach(function(wx){
+    box(1.3,0.95,0.08,glassDark,wx,3.62,-2.06,loco);
+    var wp=box(0.05,0.8,0.04,darkM,wx-0.2,3.58,-1.99,loco); wp.rotation.z=0.45;
+  });
+  [-1,1].forEach(function(sd){
+    box(0.08,0.9,1.5,glassDark,sd*1.56,3.62,-4.3,loco);
+    box(0.36,0.05,0.05,darkM,sd*1.62,3.78,-2.35,loco);
+    box(0.05,0.32,0.24,darkM,sd*1.78,3.6,-2.35,loco);
+    // handrail along the hood + stanchions
+    var hr=cyl(0.025,0.025,11,roofM,sd*1.62,2.95,-13.2,loco,6); hr.rotation.x=Math.PI/2;
+    [-17.6,-13.2,-8.8].forEach(function(hz){ cyl(0.02,0.02,0.5,roofM,sd*1.62,2.68,hz,loco,6); });
+    // cab access steps
+    for(var stp=0;stp<3;stp++){ box(0.55,0.08,0.75,roofM,sd*(1.45+(2-stp)*0.16),0.42+stp*0.44,-2.7,loco); }
+    // front access steps
+    for(var stp2=0;stp2<2;stp2++){ box(0.5,0.08,0.6,roofM,sd*(1.4+(1-stp2)*0.14),0.45+stp2*0.45,-0.4,loco); }
+  });
+  // twin air horns on the cab roof
+  [-0.42,0.42].forEach(function(hx){
+    var hn=cyl(0.05,0.12,0.55,mat(0xc9a227,0.4,0.7),hx,4.58,-3.3,loco,8); hn.rotation.x=1.1;
+  });
+  // short nose with sloped top, white band, grille, plow stripe
+  box(2.8,1.3,2.0,blue,0,1.85,-0.95,loco);
+  box(2.84,0.3,2.04,white,0,2.3,-0.95,loco);
+  var slope=box(2.8,0.95,0.14,blue,0,2.42,0.14,loco); slope.rotation.x=-0.5;
+  box(1.2,0.6,0.08,darkM,0,1.68,0.07,loco);
+  box(2.5,0.45,0.22,redM,0,1.0,0.08,loco);
+  lightBall(-0.9,2.62,0.12,0.17,0xffe98a,1.6,loco);
+  lightBall(0.9,2.62,0.12,0.17,0xffe98a,1.6,loco);
+  lightBall(-1.08,1.22,0.1,0.11,0xfff6cc,1.2,loco);
+  lightBall(1.08,1.22,0.1,0.11,0xfff6cc,1.2,loco);
+  box(0.4,0.3,0.7,darkM,0,0.95,0.35,loco);
+  sidePlanes(locoTex,18.6,3.0,2.5,-9.4,loco,1.51);
+  bogie(loco,-3.6,3,0.5,5.0);
+  bogie(loco,-15.2,3,0.5,5.0);
+  // --- coaches: 5 x ENR air-conditioned 2nd class ---
+  for(var ci2=0;ci2<5;ci2++){
+    var cz=-19.8-ci2*21.2-10;
+    var coach=new THREE.Group(); playerTrain.add(coach);
+    box(2.95,0.5,20.2,darkM,0,0.95,cz,coach);
+    box(2.95,2.5,20.2,silver,0,2.45,cz,coach);
+    box(3.0,0.3,20.3,roofM,0,3.85,cz,coach);
+    sidePlanes(coachTex,19.6,2.45,2.45,cz,coach,1.485);
+    [-1,1].forEach(function(sd){
+      // real glass windows set into the blue band, with frames
+      for(var wI2=0;wI2<9;wI2++){
+        var wz=cz-8.4+wI2*2.1;
+        box(0.05,0.92,1.45,darkM,sd*1.51,2.68,wz,coach);
+        box(0.05,0.78,1.3,glassM,sd*1.545,2.68,wz,coach);
+      }
+      // end doors with windows, handles and boarding steps
+      [cz-9.3,cz+9.3].forEach(function(dz){
+        box(0.07,1.95,1.05,blue,sd*1.515,2.12,dz,coach);
+        box(0.05,0.6,0.62,glassDark,sd*1.56,2.72,dz,coach);
+        box(0.06,0.05,0.3,roofM,sd*1.56,1.95,dz+(dz<cz?0.32:-0.32),coach);
+        box(0.5,0.07,0.85,roofM,sd*1.42,0.8,dz,coach);
+        box(0.5,0.07,0.85,roofM,sd*1.26,0.44,dz,coach);
+      });
+    });
+    // gangway bellows at both ends
+    [cz-10.16,cz+10.16].forEach(function(gz){
+      box(2.3,2.35,0.3,darkM,0,2.35,gz,coach);
+      box(1.95,2.0,0.38,mat(0x2a3138,0.85,0.1),0,2.35,gz,coach);
+    });
+    // roof air-conditioning pods
+    [-6,0,6].forEach(function(az2){
+      box(1.7,0.3,2.8,roofM,0,4.05,cz+az2,coach);
+      box(1.2,0.1,1.8,darkM,0,4.22,cz+az2,coach);
+    });
+    // underframe equipment boxes
+    box(2.0,0.55,4.5,darkM,0,0.5,cz-3,coach);
+    box(2.0,0.55,3.4,darkM,0,0.5,cz+3.6,coach);
+    bogie(coach,cz-7.2,2,0.42,3.6);
+    bogie(coach,cz+7.2,2,0.42,3.6);
+    box(0.35,0.28,0.8,darkM,0,0.95,cz-10.45,coach);
+    if(ci2===4){
+      // tail lights + rear door on the last coach
+      lightBall(-1.05,2.3,cz-10.4,0.1,0xff2a2a,1.4,coach);
+      lightBall(1.05,2.3,cz-10.4,0.1,0xff2a2a,1.4,coach);
+      box(1.1,2.0,0.1,blue,0,2.3,cz-10.32,coach);
+    }
+  }
+})();
+
+// ---------- audio ----------
+var AC=null, rumbleGain=null, hissGain=null, engineOsc=null, engineGain=null, engineOsc2=null, noiseBuf=null, lastClackPos=0;
+function initAudio(){
+  if(AC) { if(AC.resume)AC.resume(); return; }
+  try{
+    AC=new (window.AudioContext||window.webkitAudioContext)();
+    var len=AC.sampleRate*1.2, buf=AC.createBuffer(1,len,AC.sampleRate), d=buf.getChannelData(0);
+    for(var i=0;i<len;i++) d[i]=Math.random()*2-1;
+    noiseBuf=buf;
+    function noiseLoop(freq,type){
+      var src=AC.createBufferSource(); src.buffer=buf; src.loop=true;
+      var f=AC.createBiquadFilter(); f.type=type; f.frequency.value=freq;
+      var gn=AC.createGain(); gn.gain.value=0;
+      src.connect(f); f.connect(gn); gn.connect(AC.destination); src.start();
+      return gn;
+    }
+    rumbleGain=noiseLoop(220,'lowpass');
+    hissGain=noiseLoop(3000,'highpass');
+    // diesel engine hum — pitch & volume follow speed + throttle
+    engineGain=AC.createGain(); engineGain.gain.value=0;
+    var ef=AC.createBiquadFilter(); ef.type='lowpass'; ef.frequency.value=420;
+    engineOsc=AC.createOscillator(); engineOsc.type='sawtooth'; engineOsc.frequency.value=52;
+    engineOsc2=AC.createOscillator(); engineOsc2.type='square'; engineOsc2.frequency.value=26;
+    var eg2=AC.createGain(); eg2.gain.value=0.5;
+    engineOsc.connect(ef); engineOsc2.connect(eg2); eg2.connect(ef);
+    ef.connect(engineGain); engineGain.connect(AC.destination);
+    engineOsc.start(); engineOsc2.start();
+  }catch(e){ AC=null; }
+}
+// clickety-clack: two quick wheel beats over each rail joint
+function clack(vol){
+  if(!AC||!noiseBuf)return;
+  [0,0.13].forEach(function(off){
+    var src=AC.createBufferSource(); src.buffer=noiseBuf;
+    src.playbackRate.value=0.7+Math.random()*0.2;
+    var f=AC.createBiquadFilter(); f.type='bandpass'; f.frequency.value=900; f.Q.value=1.1;
+    var g=AC.createGain(); var s=AC.currentTime+off;
+    g.gain.setValueAtTime(0.0001,s);
+    g.gain.exponentialRampToValueAtTime(vol,s+0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001,s+0.09);
+    src.connect(f); f.connect(g); g.connect(AC.destination);
+    src.start(s,Math.random()*0.5,0.12); src.stop(s+0.13);
+  });
+}
+function tone(freq,t0,dur,type,vol){
+  if(!AC)return;
+  var o=AC.createOscillator(), g=AC.createGain();
+  o.type=type||'sine'; o.frequency.value=freq;
+  var s=AC.currentTime+t0;
+  g.gain.setValueAtTime(0.0001,s);
+  g.gain.exponentialRampToValueAtTime(vol||0.15,s+0.03);
+  g.gain.exponentialRampToValueAtTime(0.0001,s+dur);
+  o.connect(g); g.connect(AC.destination); o.start(s); o.stop(s+dur+0.05);
+}
+function horn(){ if(!AC)return; [277,349].forEach(function(f){
+  var o=AC.createOscillator(),g=AC.createGain(),fl=AC.createBiquadFilter();
+  o.type='sawtooth'; o.frequency.value=f; fl.type='lowpass'; fl.frequency.value=900;
+  var s=AC.currentTime; g.gain.setValueAtTime(0.0001,s);
+  g.gain.exponentialRampToValueAtTime(0.12,s+0.05);
+  g.gain.setValueAtTime(0.12,s+0.55); g.gain.exponentialRampToValueAtTime(0.0001,s+0.8);
+  o.connect(fl); fl.connect(g); g.connect(AC.destination); o.start(s); o.stop(s+0.85);
+});}
+function chime(){ tone(784,0,0.35,'sine',0.14); tone(587,0.22,0.5,'sine',0.14); }
+function ding(){ tone(1318,0,0.3,'sine',0.12); }
+function clickS(){ tone(1900,0,0.05,'square',0.05); }
+// ---------- UI refs ----------
+function $(id){return document.getElementById(id);}
+var ui={speed:$('speedVal'),score:$('scoreVal'),viol:$('violTxt'),clock:$('clock'),
+ nextName:$('nextStName'),dist:$('distBig'),limit:$('limitVal'),sched:$('schedVal'),
+ sigLight:$('signalLight'),sigTxt:$('signalTxt'),sigDist:$('signalDist'),warn:$('limitWarn'),
+ thr:$('thrVal'),brk:$('brkVal'),fill:$('trackFill'),mark:$('trainMark'),
+ msg:$('msg'),sub:$('submsg'),doors:$('btnDoors'),dwellBox:$('dwellBox'),dwellTxt:$('dwellTxt'),dwellBar:$('dwellBar'),
+ stopMeter:$('stopMeter'),needle:$('meterNeedle')};
+// station dots
+var dots=[];
+STATIONS.forEach(function(st,i){
+  var pct=st.z/ROUTE*100;
+  var d=document.createElement('div'); d.className='stDot'+(i===0?' done':''); d.style.right=pct+'%'; d.textContent=i===0?'✓':'';
+  $('trackLine').appendChild(d); dots.push(d);
+  var n=document.createElement('div'); n.className='stName'; n.style.right=pct+'%'; n.textContent=st.name;
+  $('trackLine').appendChild(n);
+});
+if(dots[1])dots[1].classList.add('next');
+// stop meter zones (range ±170m)
+$('meterZone').style.left=(65/340*100)+'%'; $('meterZone').style.width=(210/340*100)+'%';
+$('meterPerfect').style.left=(160/340*100)+'%'; $('meterPerfect').style.width=(20/340*100)+'%';
+// notches
+var thrNotchEls=[],brkNotchEls=[];
+for(var ni=0;ni<8;ni++){var nd=document.createElement('div');nd.className='notch';$('thrNotches').appendChild(nd);thrNotchEls.push(nd);}
+for(var nj=0;nj<5;nj++){var nb=document.createElement('div');nb.className='notch';$('brakeNotches').appendChild(nb);brkNotchEls.push(nb);}
+function showMsg(t,sub,dur){
+  ui.msg.textContent=t; ui.msg.style.display=t?'block':'none';
+  ui.sub.textContent=sub||''; ui.sub.style.display=sub?'block':'none';
+  S.msgT=dur||2.6;
+}
+function fmtClock(elapsed){
+  var tot=9*3600+Math.floor(elapsed*3);
+  var h=Math.floor(tot/3600),m=Math.floor(tot%3600/60);
+  return (h<10?'0':'')+h+':'+(m<10?'0':'')+m;
+}
+function addScore(n){ S.score=Math.max(0,S.score+n); }
+function violate(n,txt){
+  S.violations++; addScore(-n); showMsg('⚠ مخالفة!',txt+'  (-'+n+')',2.4);
+}
+// ---------- controls ----------
+function setThrottle(v){
+  if(S.doorsOpen){ showMsg('الأبواب مفتوحة!','اقفل الأبواب الأول قبل ما تتحرك',1.6); return; }
+  v=Math.max(0,Math.min(8,v));
+  if(v!==S.throttle){ S.throttle=v; clickS(); }
+  if(v>0) S.brake=Math.min(S.brake,2);
+}
+function setBrake(v){
+  v=Math.max(0,Math.min(5,v));
+  if(v!==S.brake){ S.brake=v; clickS(); }
+}
+function doEmergency(){
+  if(!S.started||S.over)return;
+  S.throttle=0; S.brake=5; clickS();
+  var redNear=SIGNALS.some(function(sg){return sg.state==='red'&&sg.z>S.pos&&sg.z-S.pos<420;});
+  if(S.speed>15&&!redNear&&S.emgCool<=0){ addScore(-50); S.emgCool=10; showMsg('فرامل طوارئ!','استخدمتها من غير سبب (-50)',2); }
+  else showMsg('فرامل طوارئ!','',1.4);
+}
+function toggleDoors(){
+  if(S.stoppedStation<0||S.speed>0.5)return;
+  var st=STATIONS[S.stoppedStation];
+  if(!S.doorsOpen){
+    S.doorsOpen=true; S.dwell=0; S.dwellDone=false;
+    ui.dwellBox.style.display='block'; ui.dwellTxt.textContent='الركاب بيطلعوا وينزلوا في '+st.name+'…';
+    ui.doors.textContent='🚪 اقفل الأبواب'; ui.doors.disabled=true;
+    lampDoor.material.emissiveIntensity=1.4; chime();
+  } else if(S.dwellDone){
+    S.doorsOpen=false; ui.dwellBox.style.display='none';
+    ui.doors.textContent='🚪 الأبواب'; ui.doors.disabled=true;
+    lampDoor.material.emissiveIntensity=0; ding();
+    var err=Math.abs(S.pos-st.z);
+    var base=err<=10?300:err<=25?230:err<=60?150:85;
+    var late=S.elapsed-st.sched, timeBonus=0, timeTxt='';
+    if(Math.abs(late)<=30){timeBonus=100;timeTxt='وصول في المعاد بالظبط!';}
+    else if(Math.abs(late)<=65){timeBonus=55;timeTxt=late>0?'اتأخرت شوية':'وصلت بدري شوية';}
+    else {timeBonus=15;timeTxt=late>0?'تأخير كبير عن الجدول':'بدري قوي عن الجدول';}
+    addScore(base+timeBonus); S.stopsDone++;
+    var servedIdx=S.stoppedStation; S.stoppedStation=-1;
+    if(dots[servedIdx]){dots[servedIdx].classList.add('done');dots[servedIdx].textContent='✓';dots[servedIdx].classList.remove('next');}
+    S.nextIdx=servedIdx+1;
+    if(dots[S.nextIdx])dots[S.nextIdx].classList.add('next');
+    showMsg('أحسنت! وقوف '+(err<=10?'مثالي 🎯':err<=25?'ممتاز':'مقبول')+' في '+st.name,
+      '+'+(base+timeBonus)+' نقطة · خطأ الوقوف '+Math.round(err)+' متر · '+timeTxt,3.2);
+    if(servedIdx===STATIONS.length-1){ setTimeout(function(){endTrip(true);},900); }
+    else horn();
+  }
+}
+function bindHold(id,fn){
+  var el=$(id),iv=null;
+  function start(e){ e.preventDefault(); fn(); iv=setInterval(fn,190); }
+  function stop(){ if(iv){clearInterval(iv);iv=null;} }
+  el.addEventListener('pointerdown',start);
+  el.addEventListener('pointerup',stop); el.addEventListener('pointerleave',stop); el.addEventListener('pointercancel',stop);
+}
+bindHold('btnThrPlus',function(){setThrottle(S.throttle+1);});
+bindHold('btnThrMinus',function(){setThrottle(S.throttle-1);});
+bindHold('btnBrakePlus',function(){setBrake(S.brake+1);});
+bindHold('btnBrakeMinus',function(){setBrake(S.brake-1);});
+// ---- real drag levers (phone-first): drag handle up = more, down = less ----
+function syncLevers(){
+  var th=$('thrLever'),bh=$('brakeLever');
+  if(th){ var tp=S.throttle/8; $('thrHandle').style.bottom='calc('+(14+tp*(th.clientHeight-28-34))+'px)'; $('thrLeverVal').textContent='خانق '+S.throttle; }
+  if(bh){ var bp=S.brake/5; $('brakeHandle').style.bottom='calc('+(14+bp*(bh.clientHeight-28-34))+'px)'; $('brakeLeverVal').textContent='فرامل '+S.brake; }
+}
+function bindLever(leverId,max,setter){
+  var el=$(leverId); if(!el)return;
+  var active=false;
+  function apply(e){
+    var r=el.getBoundingClientRect();
+    var frac=1-((e.clientY-r.top-14)/(r.height-28));
+    frac=Math.max(0,Math.min(1,frac));
+    setter(Math.round(frac*max));
+    syncLevers();
+  }
+  el.addEventListener('pointerdown',function(e){ active=true; el.setPointerCapture(e.pointerId); apply(e); e.preventDefault(); });
+  el.addEventListener('pointermove',function(e){ if(active) apply(e); });
+  el.addEventListener('pointerup',function(){ active=false; });
+  el.addEventListener('pointercancel',function(){ active=false; });
+}
+bindLever('thrLever',8,function(v){ setThrottle(v); });
+bindLever('brakeLever',5,function(v){ setBrake(v); });
+// ---- camera toggle: cab <-> outside ----
+$('btnCamera').addEventListener('click',function(){
+  initAudio();
+  S.camMode=(S.camMode==='cab')?'ext':'cab';
+  var ext=S.camMode==='ext';
+  this.textContent=ext?'🚂 كاميرا الكابينة':'📷 كاميرا بره القطر';
+  this.classList.toggle('camOn',ext);
+  showMsg(ext?'كاميرا خارجية 📷':'كاميرا الكابينة 🚂',ext?'شايف القطر كله من بره — اسحب بإيدك يمين وشمال عشان تلف الكاميرا حواليه':'رجعت جوه الكابينة',2.2);
+  clickS();
+});
+// ---- fullscreen ----
+// Why the old button froze the game on phones: (1) it forced a landscape
+// orientation lock the moment fullscreen opened — rotating the phone
+// mid-game makes many Android GPUs drop the WebGL context, and with no
+// context-restore handler the canvas stayed frozen on its last frame
+// forever; (2) it passed an options object to requestFullscreen, which
+// several in-app WebViews throw on or never settle; (3) it resized the
+// renderer separately from the fullscreen, resize and orientation
+// paths, so one tap produced a burst of canvas resizes mid-transition.
+// Fixed below: no orientation lock, a plain argument-free request, ONE
+// debounced safe resize for every event, and WebGL context recovery.
+var fakeFs=false, fsPending=false;
+function fsElement(){ return document.fullscreenElement||document.webkitFullscreenElement||null; }
+function updateFsBtn(){
+  var b=$('btnFullscreen'); if(!b)return;
+  b.textContent=(fsElement()||fakeFs)?'⛶ اخرج من ملء الشاشة':'⛶ ملء الشاشة';
+}
+// Single safe resize used by every event (fullscreen / rotate / window
+// resize): a burst of events collapses into one renderer resize on the
+// next frame, zero or invalid sizes are ignored (a 0-height resize
+// during the fullscreen transition used to blank the game), and the
+// renderer is only resized when the size actually changed.
+var resizeQueued=false, lastRW=0, lastRH=0;
+function resizeRenderer(){
+  resizeQueued=false;
+  var w=container.clientWidth||innerWidth, h=container.clientHeight||innerHeight;
+  if(!w||!h||w<50||h<50) return;
+  if(camera.aspect!==w/h){ camera.aspect=w/h; camera.updateProjectionMatrix(); }
+  if(lastRW!==w||lastRH!==h){ lastRW=w; lastRH=h; renderer.setSize(w,h); }
+}
+function scheduleResize(){
+  if(resizeQueued) return; resizeQueued=true;
+  requestAnimationFrame(resizeRenderer);
+}
+function onFsChange(){
+  fsPending=false;
+  updateFsBtn();
+  scheduleResize();
+  // viewport size can keep settling for a moment after entering/leaving
+  setTimeout(scheduleResize,250);
+  setTimeout(scheduleResize,700);
+}
+document.addEventListener('fullscreenchange',onFsChange);
+document.addEventListener('webkitfullscreenchange',onFsChange);
+window.addEventListener('orientationchange',function(){ setTimeout(scheduleResize,120); });
+// If the GPU drops the WebGL context (common on phones when the screen
+// rotates or fullscreen toggles), allow it to restore and repaint —
+// without this the game used to freeze for good on the last frame.
+renderer.domElement.addEventListener('webglcontextlost',function(e){ e.preventDefault(); },false);
+renderer.domElement.addEventListener('webglcontextrestored',function(){ lastRW=0; lastRH=0; scheduleResize(); },false);
+$('btnFullscreen').addEventListener('click',function(){
+  initAudio();
+  if(fsPending) return; // ignore extra taps while a request is in flight
+  if(fsElement()){
+    var ex=document.exitFullscreen||document.webkitExitFullscreen;
+    if(ex){ try{ var xp=ex.call(document); if(xp&&xp.catch)xp.catch(function(){}); }catch(e){} }
+    setTimeout(onFsChange,350);
+    return;
+  }
+  if(fakeFs){
+    fakeFs=false; document.documentElement.classList.remove('fakefs');
+    updateFsBtn(); scheduleResize(); return;
+  }
+  var el=document.documentElement;
+  var req=el.requestFullscreen||el.webkitRequestFullscreen||el.webkitRequestFullScreen;
+  function fallback(){
+    // Real fullscreen was refused (common inside embedded frames and on
+    // iPhone Safari, which has no element fullscreen): stretch the game
+    // over the whole visible screen instead, and tell the player. The
+    // game itself keeps running either way.
+    if(fsElement()) return;
+    fakeFs=true; document.documentElement.classList.add('fakefs');
+    try{ window.scrollTo(0,1); }catch(e){}
+    fsPending=false;
+    updateFsBtn(); scheduleResize();
+    showMsg('ملء الشاشة 📱','المتصفح منع ملء الشاشة الكامل من جوه الصفحة دي، فمدّينا اللعبة على الشاشة كلها. للملء الكامل افتح اللعبة مباشرة في متصفح التليفون',3.6);
+    clickS();
+  }
+  if(!req){ fallback(); return; }
+  fsPending=true;
+  var done=false;
+  function finish(){ if(!done){ done=true; fsPending=false; onFsChange(); } }
+  try{
+    var p=req.call(el); // no options object: several WebViews throw on it
+    if(p&&p.then){
+      p.then(finish,function(){ if(!done){ done=true; fallback(); } });
+      // safety net: if the browser neither enters fullscreen nor settles
+      // the promise (some in-app WebViews), fall back instead of hanging
+      setTimeout(function(){ if(!done&&!fsElement()){ done=true; fallback(); } },1200);
+    } else {
+      // legacy webkit API returns nothing: check shortly whether it worked
+      setTimeout(function(){ if(fsElement()){ finish(); } else if(!done){ done=true; fallback(); } },450);
+    }
+  }catch(e){ if(!done){ done=true; fallback(); } }
+});
+$('btnHorn').addEventListener('click',function(){ initAudio(); horn(); });
+$('btnEmergency').addEventListener('click',doEmergency);
+ui.doors.addEventListener('click',toggleDoors);
+document.addEventListener('keydown',function(e){
+  if(!S.started)return;
+  var k=e.code;
+  if(k==='KeyW'||k==='ArrowUp'){setThrottle(S.throttle+1);e.preventDefault();}
+  else if(k==='KeyS'||k==='ArrowDown'){setThrottle(S.throttle-1);e.preventDefault();}
+  else if(k==='KeyD'){setBrake(S.brake+1);}
+  else if(k==='KeyA'){setBrake(S.brake-1);}
+  else if(k==='KeyH'){initAudio();horn();}
+  else if(k==='KeyE'){toggleDoors();}
+  else if(k==='KeyB'){doEmergency();}
+  else if(k==='KeyC'){$('btnCamera').click();}
+  else if(k==='KeyF'){$('btnFullscreen').click();}
+});
+// look-around drag: in the cab it turns the driver's head; outside it
+// ORBITS the camera around the whole train (and the angle stays put).
+var lookYaw=0,lookPitch=-0.08,dragging=false,lastX=0,lastY=0;
+var extYaw=0.7, extPitch=0.34, extDist=74, camPosSm=null;
+var cvs=renderer.domElement;
+cvs.addEventListener('pointerdown',function(e){
+  dragging=true; lastX=e.clientX; lastY=e.clientY;
+  try{ cvs.setPointerCapture(e.pointerId); }catch(err){}
+});
+cvs.addEventListener('pointermove',function(e){
+  if(!dragging)return;
+  var dx=e.clientX-lastX, dy=e.clientY-lastY;
+  lastX=e.clientX; lastY=e.clientY;
+  if(S.camMode==='ext'){
+    extYaw-=dx*0.0065;
+    extPitch=Math.max(0.05,Math.min(1.2,extPitch+dy*0.005));
+  } else {
+    // wide look range so the driver can take in the whole cab: far left
+    // and right to the side windows, and well down onto the desk
+    lookYaw=Math.max(-1.25,Math.min(1.25,lookYaw-dx*0.0035));
+    lookPitch=Math.max(-0.55,Math.min(0.42,lookPitch-dy*0.0025));
+  }
+});
+function endDrag(){ dragging=false; }
+cvs.addEventListener('pointerup',endDrag);
+cvs.addEventListener('pointercancel',endDrag);
+window.addEventListener('pointerup',endDrag);
+window.addEventListener('pointercancel',endDrag);
+cvs.addEventListener('wheel',function(e){
+  if(S.camMode==='ext'){ e.preventDefault(); extDist=Math.max(26,Math.min(160,extDist+e.deltaY*0.06)); }
+},{passive:false});
+// two-finger pinch zoom for the outside camera on phones
+var pinchD=0;
+cvs.addEventListener('touchmove',function(e){
+  if(S.camMode==='ext'&&e.touches.length===2){
+    var a=e.touches[0],b=e.touches[1];
+    var d=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);
+    if(pinchD>0){ extDist=Math.max(26,Math.min(160,extDist+(pinchD-d)*0.25)); }
+    pinchD=d; e.preventDefault();
+  }
+},{passive:false});
+cvs.addEventListener('touchend',function(){ pinchD=0; });
+// tap (not drag) on the physical desk buttons inside the cab presses them
+var tapX=0,tapY=0,tapT=0,cabLightOn=false,lastTapUp=0;
+cvs.addEventListener('pointerdown',function(e){ tapX=e.clientX; tapY=e.clientY; tapT=performance.now(); });
+cvs.addEventListener('pointerup',function(e){
+  if(S.camMode!=='cab')return;
+  if(Math.hypot(e.clientX-tapX,e.clientY-tapY)>7||performance.now()-tapT>350)return;
+  var ud=cab.userData;
+  var targets=[ud.btnHorn3d,ud.btnDoor3d,ud.btnLight3d].filter(Boolean);
+  if(!targets.length)return;
+  var rc=new THREE.Raycaster();
+  var nd=new THREE.Vector2((e.clientX/innerWidth)*2-1,-(e.clientY/innerHeight)*2+1);
+  rc.setFromCamera(nd,camera);
+  var hit=rc.intersectObjects(targets,false);
+  if(!hit.length){
+    // double-tap on empty cab space = face forward again (the look
+    // otherwise stays exactly where the driver left it)
+    var nowUp=performance.now();
+    if(nowUp-lastTapUp<340){ lookYaw=0; lookPitch=-0.08; showMsg('رجّعت بصّك لقدّام 🚂','',0.9); }
+    lastTapUp=nowUp;
+    return;
+  }
+  initAudio();
+  if(hit[0].object===ud.btnHorn3d){ horn(); showMsg('كلاكس! 📯','',0.9); }
+  else if(hit[0].object===ud.btnDoor3d){ toggleDoors(); }
+  else if(hit[0].object===ud.btnLight3d){
+    cabLightOn=!cabLightOn;
+    ud.btnLight3d.material.emissiveIntensity=cabLightOn?1.2:0.25;
+    clickS(); showMsg(cabLightOn?'كشافات النور ولّعت 💡':'الكشافات طفت','',1.2);
+  }
+});
+// ---------- game logic ----------
+function currentLimit(){
+  var lim=120;
+  if(S.nextIdx<STATIONS.length){
+    var d=STATIONS[S.nextIdx].z-S.pos;
+    if(d>-50&&d<250)lim=40; else if(d>=-50&&d<650)lim=60;
+  }
+  for(var i=0;i<SIGNALS.length;i++){
+    var sg=SIGNALS[i];
+    if(!sg.passed&&sg.z>S.pos&&sg.z-S.pos<750&&sg.state==='yellow') lim=Math.min(lim,60);
+  }
+  return lim;
+}
+function nextSignal(){
+  for(var i=0;i<SIGNALS.length;i++){ if(!SIGNALS[i].passed&&SIGNALS[i].z>S.pos-10) return SIGNALS[i]; }
+  return null;
+}
+function endTrip(arrived){
+  S.over=true; S.finalServed=arrived;
+  var grade=S.score>=1500?'S':S.score>=1150?'A':S.score>=800?'B':S.score>=450?'C':'D';
+  $('endTitle').textContent=arrived?'وصلت الإسكندرية! 🎉':'انتهت الرحلة';
+  $('grade').textContent='التقدير: '+grade;
+  $('endScore').textContent=S.score;
+  var mm=Math.floor(S.elapsed/60),ss=Math.floor(S.elapsed%60);
+  $('endTime').textContent=mm+':'+(ss<10?'0':'')+ss;
+  $('endStops').textContent=S.stopsDone+'/4';
+  $('endViol').textContent=S.violations;
+  $('endMsg').textContent=arrived?
+    (S.stopsDone>=4?'رحلة نموذجية يا كابتن! وقفت في كل المحطات ووصلت بسلام.':
+     S.stopsDone>=2?'وصلت بسلام، بس فاتتك محطات. جرّب تفرمل بدري أكتر المرة الجاية.':
+     'وصلت، بس فاتتك محطات كتير. راقب عدّاد الوقوف وابدأ الفرملة من 600 متر.'):
+    'عدّيت محطة الإسكندرية من غير ما توقف. لازم توقف جوه الرصيف وتفتح الأبواب عشان الرحلة تكمل.';
+  $('endOverlay').style.display='flex';
+  if(arrived){ ding(); setTimeout(ding,250); }
+}
+function resetGame(){
+  S.pos=0;S.speed=0;S.throttle=0;S.brake=0;S.score=0;S.violations=0;S.nextIdx=1;S.stopsDone=0;
+  S.doorsOpen=false;S.dwell=0;S.dwellDone=false;S.stoppedStation=-1;S.elapsed=0;S.overT=0;
+  S.overCool=0;S.emgCool=0;S.hardCool=0;S.over=false;S.distBonusKm=0;S.finalServed=false;
+  SIGNALS.forEach(function(sg){ sg.state=sg.type==='red'?'red':'green'; if(sg.type==='yellow')sg.state='yellow'; sg.passed=false; sg.greenAt=0; setSignalVisual(sg); });
+  dots.forEach(function(d,i){ d.classList.toggle('done',i===0); d.textContent=i===0?'✓':''; d.classList.toggle('next',i===1); });
+  chunks.forEach(function(g,i){ layoutChunk(g,i-1); });
+  opp.active=false; opp.passed=false; opp.horned=false; oppTrain.visible=false;
+  ui.doors.disabled=true; ui.doors.textContent='🚪 الأبواب'; ui.dwellBox.style.display='none';
+  $('endOverlay').style.display='none';
+  showMsg('رحلة جديدة!','المحطة الجاية: بنها — خبط كلاكس واطلع',3);
+}
+$('btnStart').addEventListener('click',function(){
+  initAudio(); S.started=true;
+  $('startOverlay').style.display='none';
+  showMsg('انطلق من محطة مصر! 🚂','المحطة الجاية: بنها · زوّد الخانق بالزرار + أو W',3.6);
+});
+$('btnAgain').addEventListener('click',function(){ initAudio(); resetGame(); });
+// ---------- main loop ----------
+var lastT=performance.now(), simT=0;
+function frame(now){
+  requestAnimationFrame(frame);
+  var dt=Math.min(0.05,(now-lastT)/1000); lastT=now;
+  try{ step(dt,now/1000); }catch(err){
+    var eb=$('errBox'); eb.style.display='block'; eb.textContent='⚠ '+err.message;
+  }
+}
+function step(dt,t){
+  simT=t;
+  if(S.started&&!S.over){
+    S.elapsed+=dt;
+    // physics (km/h domain)
+    var drag=0.0038*S.speed+(S.throttle===0&&S.brake===0?0.22:0);
+    var a=S.throttle*0.62 - S.brake*1.6 - drag;
+    if(S.doorsOpen) a=-S.speed*2-2;
+    S.speed=Math.max(0,Math.min(128,S.speed+a*dt));
+    if(S.speed<0.4&&S.throttle===0) S.speed=0;
+    S.pos+=(S.speed/3.6)*2.0*dt;
+    if(S.pos>=ROUTE+320){ endTrip(false); }
+    // distance bonus
+    var kmIdx=Math.floor(S.pos/100);
+    if(kmIdx>S.distBonusKm){ S.distBonusKm=kmIdx; addScore(2); }
+    // cooldowns
+    S.overCool=Math.max(0,S.overCool-dt); S.emgCool=Math.max(0,S.emgCool-dt); S.hardCool=Math.max(0,S.hardCool-dt);
+    // overspeed
+    var lim=currentLimit();
+    if(S.speed>lim+4){
+      S.overT+=dt;
+      if(S.overT>2&&S.overCool<=0){ violate(75,'سرعة '+Math.round(S.speed)+' والحد '+lim); S.overCool=8; S.overT=0; }
+    } else S.overT=Math.max(0,S.overT-dt*2);
+    // hard braking comfort
+    if(S.brake>=4&&S.speed>90&&S.hardCool<=0){ addScore(-30); S.hardCool=7; showMsg('فرملة قاسية! 😖','الركاب اتخضّوا (-30)',1.8); }
+    // signals: red clearing + passing
+    SIGNALS.forEach(function(sg){
+      if(sg.state==='red'&&!sg.passed){
+        var d=sg.z-S.pos;
+        if(d<430&&d>0&&(S.speed<22||S.speed===0)){
+          if(!sg.greenAt) sg.greenAt=S.elapsed+(S.speed===0&&d<90?2.5:5.5);
+          if(S.elapsed>=sg.greenAt){ sg.state='green'; setSignalVisual(sg); showMsg('الإشارة بقت خضراء ✅','كمّل طريقك',2); ding(); }
+        }
+      }
+      if(!sg.passed&&S.pos>=sg.z){
+        sg.passed=true;
+        if(sg.state==='red') violate(200,'عدّيت إشارة حمراء!');
+      }
+    });
+    // station stop / miss
+    if(S.nextIdx<STATIONS.length){
+      var st=STATIONS[S.nextIdx];
+      if(S.speed===0&&S.stoppedStation!==S.nextIdx&&Math.abs(S.pos-st.z)<=105&&!S.doorsOpen){
+        S.stoppedStation=S.nextIdx; S.throttle=0;
+        ui.doors.disabled=false;
+        showMsg('وقفت في محطة '+st.name+' 🚉','افتح الأبواب بالزرار أو حرف E',3);
+        chime();
+      }
+      if(S.pos>st.z+135&&S.stoppedStation!==S.nextIdx){
+        violate(150,'فوّت محطة '+st.name+' من غير ما توقف!');
+        if(dots[S.nextIdx]){dots[S.nextIdx].classList.remove('next');}
+        S.nextIdx++;
+        if(S.nextIdx>=STATIONS.length){ endTrip(false); }
+        else if(dots[S.nextIdx])dots[S.nextIdx].classList.add('next');
+      }
+    }
+    // dwell
+    if(S.doorsOpen&&!S.dwellDone){
+      S.dwell+=dt;
+      ui.dwellBar.style.width=Math.min(100,S.dwell/6*100)+'%';
+      if(S.dwell>=6){ S.dwellDone=true; ui.doors.disabled=false; ui.dwellTxt.textContent='الركاب خلّصوا ✅ اقفل الأبواب واطلع'; ding(); }
+    }
+    // opposing train event
+    if(!opp.passed&&S.pos>5700&&!opp.active){ opp.active=true; opp.horned=false; opp.z=S.pos+1500; oppTrain.visible=true; }
+    if(opp.active){
+      opp.z-=52*dt; oppTrain.position.z=opp.z;
+      if(!opp.horned&&opp.z<S.pos+650){ opp.horned=true; horn(); }
+      if(opp.z<S.pos-350){ opp.active=false; opp.passed=true; oppTrain.visible=false; }
+    }
+  }
+  // ---- world follow ----
+  chunks.forEach(function(g){
+    if(g.position.z+CHUNK<S.pos-CHUNK*1.6){
+      layoutChunk(g,Math.round(g.position.z/CHUNK)+NCHUNK);
+    }
+  });
+  groundPlane.position.z=S.pos+320;
+  sun.position.set(-70,115,S.pos+30); sun.target.position.set(0,0,S.pos+120);
+  scene.add(sun.target); sun.target.updateMatrixWorld();
+  // cab & camera
+  var spdN=S.speed/120;
+  var bobY=Math.sin(t*22)*0.02*spdN+Math.sin(t*47)*0.008*spdN;
+  var sway=Math.sin(t*1.7)*0.012*spdN;
+  cab.position.set(sway,bobY,S.pos);
+  cab.rotation.z=sway*0.4;
+  // exterior Egypt train follows the same position (front at S.pos)
+  playerTrain.position.set(0,0,S.pos);
+  var extMode=(S.camMode==='ext');
+  playerTrain.visible=extMode;
+  cab.visible=!extMode;
+  // wider field of view inside the cab so the WHOLE desk — both levers,
+  // every gauge, both side windows — is in frame in front of the driver
+  var wantFov=extMode?68:79;
+  if(Math.abs(camera.fov-wantFov)>0.1){ camera.fov=wantFov; camera.updateProjectionMatrix(); }
+  // The cab look direction STAYS exactly where the driver left it — no
+  // auto-recentering. Double-tap the screen to face forward again.
+  camera.rotation.order='YXZ';
+  if(extMode){
+    // outside ORBIT camera: circles the whole train (loco + all 5 coaches,
+    // centred mid-train). Drag rotates it, wheel/pinch zooms. It follows
+    // the train smoothly and keeps the angle the player chose.
+    var centerZ=S.pos-52;
+    var tx=Math.sin(extYaw)*Math.cos(extPitch)*extDist;
+    var ty=2.2+Math.sin(extPitch)*extDist;
+    var tz=centerZ+Math.cos(extYaw)*Math.cos(extPitch)*extDist;
+    if(!camPosSm) camPosSm=new THREE.Vector3(tx,Math.max(2.4,ty),tz);
+    camPosSm.x+=(tx-camPosSm.x)*0.14;
+    camPosSm.y+=(ty-camPosSm.y)*0.14;
+    camPosSm.z+=(tz-camPosSm.z)*0.4;
+    camera.position.set(camPosSm.x,Math.max(2.2,camPosSm.y),camPosSm.z);
+    camera.lookAt(0,2.2,centerZ);
+    camera.rotation.z=0;
+  } else {
+    camPosSm=null;
+    // seated further back in the cab so the full-width desk and the short
+    // wide nose ahead are all visible at once, like the real driver's seat
+    camera.position.set(sway*0.5,3.02+bobY*0.6,S.pos-0.95);
+    camera.rotation.y=Math.PI-lookYaw;
+    camera.rotation.x=lookPitch;
+    camera.rotation.z=sway*0.3;
+  }
+  // levers & gauges — the 3D desk mirrors the phone controls exactly
+  thrLever.rotation.x=0.25-(S.throttle/8)*0.75;
+  brkLever.rotation.x=0.25-(S.brake/5)*0.75;
+  speedNeedle.rotation.z=2.35-(Math.min(S.speed,140)/140)*4.7;
+  // brake-cylinder pressure gauge (bar, dial max 10): rises as brakes apply
+  brakeNeedle.rotation.z=2.35-((S.brake*1.25)/10)*4.7;
+  // main-reservoir gauge: sits near 8 bar, dips a little while braking
+  if(resNeedle) resNeedle.rotation.z=2.35-(((7.9-S.brake*0.35+Math.sin(t*2.1)*0.08))/10)*4.7;
+  // engine rev gauge (x100 rpm, dial max 16): idle + throttle + load
+  if(rpmNeedle) rpmNeedle.rotation.z=2.35-((Math.min(15.5,3.6+S.throttle*1.05+S.speed*0.028))/16)*4.7;
+  // both windshield wipers sweep together
+  if(cab.userData.wipers){ var wAng=0.05+Math.sin(t*1.7)*0.55; cab.userData.wipers.forEach(function(w){ w.rotation.z=wAng; }); }
+  // ceiling fan spins while the trip is running
+  if(cab.userData.fan&&S.started) cab.userData.fan.rotation.y+=dt*(S.speed>1?9:3);
+  // reverser leans forward once the throttle is opened
+  if(cab.userData.reverser) cab.userData.reverser.rotation.x=S.throttle>0?-0.42:-0.15;
+  // desk indicator lamps follow the next lineside signal + engine state
+  var csig=nextSignal();
+  if(lampSigG) lampSigG.material.emissiveIntensity=(csig&&csig.state==='green')?1.5:0.03;
+  if(lampSigR) lampSigR.material.emissiveIntensity=(csig&&csig.state==='red')?(1.2+Math.sin(t*6)*0.5):0.03;
+  if(lampEngine) lampEngine.material.emissiveIntensity=S.started?(0.55+Math.sin(t*9)*0.12):0.03;
+  // people: idle sway, passengers walking the platform with swinging
+  // arms and legs, and the station worker waving his dispatch flag
+  for(var pi=0;pi<stationGroups.length;pi++){
+    var pp=stationGroups[pi], pu=pp.userData;
+    var walking=!!pu.walkSpeed;
+    if(walking){
+      pp.position.z+=pu.walkDir*pu.walkSpeed*dt;
+      if(pp.position.z>pu.baseZ+pu.range) pu.walkDir=-1;
+      if(pp.position.z<pu.baseZ-pu.range) pu.walkDir=1;
+      pp.rotation.y=pu.walkDir>0?0:Math.PI;
+    }
+    var sw=walking?Math.sin(t*7.5+pu.phase)*0.5:Math.sin(t*1.8+pu.phase)*0.06;
+    if(pu.arms&&pu.arms.length===2){ pu.arms[0].rotation.x=sw; pu.arms[1].rotation.x=-sw; }
+    if(pu.legs&&pu.legs.length===2&&walking){ pu.legs[0].rotation.x=-sw*0.8; pu.legs[1].rotation.x=sw*0.8; }
+    if(pu.flag) pu.flag.rotation.x=Math.sin(t*3.4+pu.phase)*0.4;
+    pp.position.y=1.26+(walking?Math.abs(Math.sin(t*7.5+pu.phase))*0.035:Math.sin(t*2+pu.phase)*0.012);
+  }
+  // audio levels — engine + wheels get louder/faster with speed
+  if(AC&&rumbleGain){
+    var target=S.started?spdN*0.16:0;
+    rumbleGain.gain.setTargetAtTime(target,AC.currentTime,0.15);
+    hissGain.gain.setTargetAtTime((S.brake>0&&S.speed>4)?0.02+S.brake*0.008:spdN*0.012,AC.currentTime,0.1);
+    if(engineGain&&engineOsc){
+      var running=S.started&&!S.over;
+      var eVol=running?0.018+spdN*0.075+(S.throttle>0?0.012:0):0;
+      engineGain.gain.setTargetAtTime(eVol,AC.currentTime,0.12);
+      var eFreq=50+S.speed*0.85+S.throttle*2.2;
+      engineOsc.frequency.setTargetAtTime(eFreq,AC.currentTime,0.1);
+      if(engineOsc2)engineOsc2.frequency.setTargetAtTime(eFreq/2,AC.currentTime,0.1);
+    }
+    // rail joints every 25 m
+    if(S.started&&S.speed>6&&S.pos-lastClackPos>25){
+      lastClackPos=S.pos;
+      clack(0.05+spdN*0.16);
+    }
+    if(S.speed<=6) lastClackPos=S.pos;
+  }
+  // ---- HUD ----
+  ui.speed.textContent=Math.round(S.speed);
+  var lim2=currentLimit();
+  ui.speed.className=S.speed>lim2+4?'over':'';
+  ui.limit.textContent=lim2;
+  ui.warn.textContent=S.speed>lim2+4?'⚠ فوق حد السرعة!':'';
+  ui.score.textContent=S.score;
+  ui.viol.textContent=S.violations===0?'بدون مخالفات':S.violations+' مخالفة';
+  ui.clock.textContent=fmtClock(S.elapsed);
+  ui.thr.textContent=S.throttle; ui.brk.textContent=S.brake;
+  syncLevers();
+  thrNotchEls.forEach(function(n,i){ n.className='notch'+(i<S.throttle?' onT':''); });
+  brkNotchEls.forEach(function(n,i){ n.className='notch'+(i<S.brake?' onB':''); });
+  var pct=Math.max(0,Math.min(100,S.pos/ROUTE*100));
+  ui.fill.style.width=pct+'%'; ui.mark.style.right=pct+'%';
+  if(S.nextIdx<STATIONS.length){
+    var tst=STATIONS[S.nextIdx], d=tst.z-S.pos;
+    ui.nextName.textContent=tst.name;
+    ui.dist.textContent=d<0?'عدّيتها!':(d>=1000?(d/1000).toFixed(2)+' كم':Math.round(d)+' م');
+    ui.sched.textContent=fmtClock(tst.sched);
+    if(d<720&&d>-160){
+      ui.stopMeter.style.display='block';
+      var np=Math.max(0,Math.min(100,((S.pos-tst.z)+170)/340*100));
+      ui.needle.style.left=np+'%';
+    } else ui.stopMeter.style.display='none';
+  } else { ui.nextName.textContent='—'; ui.dist.textContent='—'; ui.stopMeter.style.display='none'; }
+  var sg2=nextSignal();
+  if(sg2&&(sg2.z-S.pos)<1500){
+    var cols={green:'#37c978',yellow:'#ffd23f',red:'#e63946'};
+    var txts={green:'الإشارة خضراء',yellow:'إشارة صفراء — هدّي لـ 60',red:'إشارة حمراء — لازم تقف!'};
+    ui.sigLight.style.background=cols[sg2.state];
+    ui.sigTxt.textContent=txts[sg2.state];
+    ui.sigDist.textContent='على بعد '+Math.max(0,Math.round(sg2.z-S.pos))+' م';
+  } else {
+    ui.sigLight.style.background='#37c978'; ui.sigTxt.textContent='الطريق مفتوح'; ui.sigDist.textContent='';
+  }
+  if(S.msgT>0){ S.msgT-=dt; if(S.msgT<=0){ ui.msg.style.display='none'; ui.sub.style.display='none'; } }
+  renderer.render(scene,camera);
+}
+requestAnimationFrame(frame);
+window.addEventListener('resize',scheduleResize);
+if(window.visualViewport) window.visualViewport.addEventListener('resize',scheduleResize);
+})();
+</script>
+</body>
+</html>
