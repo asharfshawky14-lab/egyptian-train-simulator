@@ -100,7 +100,7 @@ html.fakefs #scene{inset:0}
 .vLever .vHandle:active{cursor:grabbing;filter:brightness(1.15)}
 .vLever.thrL .vHandle{background:linear-gradient(180deg,#ffc95e,#e89b0c);color:#241a00}
 .vLever.brkL .vHandle{background:linear-gradient(180deg,#ff6b76,#c81e2e);color:#fff}
-.vLever .vVal{position:absolute;top:-22px;left:50%;transform:translateX(-50%);font-family:"Changa";font-size:15px;color:var(--amber2);white-space:nowrap}
+.vLever .vVal{position:absolute;top:3px;left:50%;transform:translateX(-50%);font-family:"Changa";font-size:12px;line-height:1.2;color:var(--amber2);white-space:nowrap;background:rgba(0,0,0,.45);padding:1px 6px;border-radius:999px;pointer-events:none;z-index:2}
 .vLever.brkL .vVal{color:#ff8a94}
 .miniBtns{display:flex;gap:6px}
 .miniBtn{width:30px;height:30px;min-height:30px;border-radius:8px;border:1px solid var(--line);background:var(--plate);color:#fff;font-size:17px;font-weight:900;line-height:1;padding:0}
@@ -147,6 +147,80 @@ html.fakefs #scene{inset:0}
   .howto{grid-template-columns:1fr}
   #routeTitle b{font-size:13px}
   .stName{display:none}
+}
+/* ===== Landscape phone / fullscreen: compact HUD, nothing overlaps ===== */
+@media (orientation:landscape) and (max-height:620px){
+  #topbar{top:4px;left:4px;right:4px;gap:4px}
+  #routeBox{padding:4px 10px 14px}
+  #routeTitle{gap:4px}
+  #routeTitle b{font-size:12px}
+  #routeTitle span{font-size:10px}
+  #clock{font-size:12px}
+  #trackLine{height:18px;margin-top:2px}
+  #trackLine:before{top:8px}
+  #trackFill{top:8px}
+  .stDot{top:2px;width:13px;height:13px;margin-right:-6.5px;font-size:7px;border-width:1.5px}
+  .stName{top:15px;font-size:8.5px}
+  #trainMark{top:-2px;width:18px;height:18px;margin-right:-9px;font-size:12px}
+  #scoreBox{min-width:68px;padding:4px 6px}
+  #scoreBox .lbl{font-size:9px}
+  #scoreVal{font-size:18px}
+  #scoreBox .sub{font-size:9px}
+  #infoBox{top:56px;left:4px;width:138px;padding:6px 8px}
+  #infoBox .k{font-size:10px}
+  #infoBox .v{font-size:13px}
+  #nextStName{font-size:13px}
+  #distBig{font-size:20px}
+  #signalBox{gap:6px;margin-top:4px;padding-top:5px}
+  #signalLight{width:14px;height:14px}
+  #signalTxt{font-size:11px}
+  #signalBox div[style]{font-size:9px!important}
+  #limitWarn{font-size:10px;min-height:12px}
+  #stopMeter{top:56px;right:4px;width:138px;padding:6px 8px}
+  #stopMeter h4{font-size:11px;margin-bottom:2px}
+  #stopHint{font-size:10px}
+  #dwellBox{top:58px;padding:5px 12px}
+  #dwellBarWrap{width:150px}
+  #msg{top:30%;padding:8px 16px}
+  #submsg{top:calc(30% + 52px);font-size:12px}
+  #dash{gap:6px;padding:4px 8px calc(4px + env(safe-area-inset-bottom));align-items:flex-end}
+  .ctlGroup{gap:3px}
+  .ctlGroup .glabel{font-size:8.5px;line-height:1.2;text-align:center}
+  .vLever{width:46px;height:82px;border-radius:10px}
+  .vLever .vTrack{width:8px}
+  .vLever .vHandle{width:40px;height:23px;font-size:13px;border-radius:7px}
+  .vLever .vVal{font-size:10px;padding:0 5px;top:2px}
+  .miniBtns{gap:4px}
+  .miniBtn{width:24px;height:24px;min-height:24px;font-size:14px;border-radius:6px}
+  .notches{gap:2px}
+  .notch{width:7px;height:11px;border-radius:2px}
+  #speedo{min-width:92px;padding:4px 8px 3px}
+  #speedVal{font-size:28px}
+  #speedo .unit{font-size:10px}
+  #gearRow{gap:7px;font-size:10px;margin-top:1px}
+  #gearRow b{font-size:11px}
+  .midBtns{flex-direction:row;flex-wrap:wrap;justify-content:center;align-items:center;align-content:center;gap:4px;max-width:min(38vw,300px)}
+  .pillBtn{min-width:0;min-height:30px;padding:4px 8px;font-size:11px;font-weight:700;border-radius:8px;white-space:nowrap;line-height:1.2}
+  .pillBtn.emg{padding:4px 10px}
+  .card{padding:14px 16px 12px;max-height:96dvh}
+  .card h1{font-size:20px}
+  .card p{font-size:12.5px;line-height:1.55;margin:5px 0}
+  .howto{gap:5px;margin:8px 0}
+  .howto div{padding:6px 8px;font-size:11.5px;line-height:1.5}
+  .startBtn{font-size:16px;padding:10px;margin-top:4px}
+}
+/* Very short landscape (small phones in fullscreen) — squeeze a bit more */
+@media (orientation:landscape) and (max-height:400px){
+  #infoBox{width:124px;top:52px}
+  #distBig{font-size:17px}
+  #stopMeter{display:none!important}
+  .vLever{height:68px}
+  #speedVal{font-size:24px}
+  #speedo{min-width:84px}
+  .midBtns{max-width:min(34vw,240px)}
+  .pillBtn{font-size:10.5px;padding:3px 6px;min-height:27px}
+  .ctlGroup .glabel{display:none}
+  .notches{display:none}
 }
 </style>
 </head>
@@ -1374,8 +1448,8 @@ bindHold('btnBrakeMinus',function(){setBrake(S.brake-1);});
 // ---- real drag levers (phone-first): drag handle up = more, down = less ----
 function syncLevers(){
   var th=$('thrLever'),bh=$('brakeLever');
-  if(th){ var tp=S.throttle/8; $('thrHandle').style.bottom='calc('+(14+tp*(th.clientHeight-28-34))+'px)'; $('thrLeverVal').textContent='خانق '+S.throttle; }
-  if(bh){ var bp=S.brake/5; $('brakeHandle').style.bottom='calc('+(14+bp*(bh.clientHeight-28-34))+'px)'; $('brakeLeverVal').textContent='فرامل '+S.brake; }
+  if(th){ var tp=S.throttle/8; var thH=$('thrHandle'); var thh=thH.offsetHeight||34; thH.style.bottom='calc('+(14+tp*Math.max(10,th.clientHeight-28-thh))+'px)'; $('thrLeverVal').textContent='خانق '+S.throttle; }
+  if(bh){ var bp=S.brake/5; var brH=$('brakeHandle'); var brh=brH.offsetHeight||34; brH.style.bottom='calc('+(14+bp*Math.max(10,bh.clientHeight-28-brh))+'px)'; $('brakeLeverVal').textContent='فرامل '+S.brake; }
 }
 function bindLever(leverId,max,setter){
   var el=$(leverId); if(!el)return;
@@ -1433,6 +1507,7 @@ function resizeRenderer(){
   if(!w||!h||w<50||h<50) return;
   if(camera.aspect!==w/h){ camera.aspect=w/h; camera.updateProjectionMatrix(); }
   if(lastRW!==w||lastRH!==h){ lastRW=w; lastRH=h; renderer.setSize(w,h); }
+  if(typeof syncLevers==='function'){ try{ syncLevers(); }catch(e){} }
 }
 function scheduleResize(){
   if(resizeQueued) return; resizeQueued=true;
